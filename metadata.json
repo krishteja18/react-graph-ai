@@ -1,0 +1,6 @@
+{
+  "name": "ReactGraph AI",
+  "description": "Frontend Graph Memory Engine for AI-powered React codebase analysis, impact tracing, and minimal context generation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["Graph Analysis", "React Parsing", "AI Context Optimization"]
+}
