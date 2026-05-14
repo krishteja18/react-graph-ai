@@ -9,17 +9,25 @@ import { glob } from 'glob';
 import { parseReactFile } from './parser';
 import { ReactScopeGraph, NodeData, EdgeData, NodeType, EdgeType } from './types';
 
+// Approximation: 1 token ≈ 4 characters (standard GPT-4 heuristic)
+export function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4);
+}
+
 export async function buildGraph(rootPath: string): Promise<ReactScopeGraph> {
   const files = await glob('**/*.{ts,tsx,js,jsx}', { cwd: rootPath, absolute: true, ignore: ['**/node_modules/**', '**/dist/**'] });
   
   const allNodes: NodeData[] = [];
   const allEdges: EdgeData[] = [];
+  let totalRawTokens = 0;
 
   // 1. Parse all files
   for (const file of files) {
     const code = await fs.readFile(file, 'utf-8');
+    totalRawTokens += estimateTokens(code);
     const relativePath = path.relative(rootPath, file);
-    const { nodes, edges } = parseReactFile(code, relativePath);
+    const fileLines = code.split('\n');
+    const { nodes, edges } = parseReactFile(code, relativePath, fileLines);
     
     allNodes.push(...nodes);
     allEdges.push(...edges);
@@ -91,6 +99,7 @@ export async function buildGraph(rootPath: string): Promise<ReactScopeGraph> {
       parsedAt: new Date().toISOString(),
       rootPath,
       totalFiles: files.length,
+      totalRawTokens,
     }
   };
 }

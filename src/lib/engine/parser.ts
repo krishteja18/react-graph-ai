@@ -18,7 +18,13 @@ export interface ParserResult {
   edges: EdgeData[];
 }
 
-export function parseReactFile(code: string, filePath: string): ParserResult {
+function extractSnippet(lines: string[] | undefined, start: number | undefined, end: number | undefined): string | undefined {
+  if (!lines || start == null || end == null) return undefined;
+  // loc lines are 1-based
+  return lines.slice(start - 1, end).join('\n');
+}
+
+export function parseReactFile(code: string, filePath: string, fileLines?: string[]): ParserResult {
   const nodes: NodeData[] = [];
   const edges: EdgeData[] = [];
 
@@ -35,13 +41,16 @@ export function parseReactFile(code: string, filePath: string): ParserResult {
       FunctionDeclaration(path) {
         if (path.node.id && /^[A-Z]/.test(path.node.id.name)) {
           const name = path.node.id.name;
+          const lineStart = path.node.loc?.start.line;
+          const lineEnd = path.node.loc?.end.line;
           nodes.push({
             id: `${filePath}:${name}`,
             name,
             type: NodeType.COMPONENT,
             filePath,
-            lineStart: path.node.loc?.start.line,
-            lineEnd: path.node.loc?.end.line,
+            lineStart,
+            lineEnd,
+            codeSnippet: extractSnippet(fileLines, lineStart, lineEnd),
           });
           currentComponent = name;
         }
@@ -53,13 +62,18 @@ export function parseReactFile(code: string, filePath: string): ParserResult {
           (t.isArrowFunctionExpression(path.node.init) || t.isFunctionExpression(path.node.init))
         ) {
           const name = path.node.id.name;
+          // Include the parent VariableDeclaration for the full `export const X = ...`
+          const declNode = path.parentPath?.node ?? path.node;
+          const lineStart = declNode.loc?.start.line;
+          const lineEnd = declNode.loc?.end.line;
           nodes.push({
             id: `${filePath}:${name}`,
             name,
             type: NodeType.COMPONENT,
             filePath,
-            lineStart: path.node.loc?.start.line,
-            lineEnd: path.node.loc?.end.line,
+            lineStart,
+            lineEnd,
+            codeSnippet: extractSnippet(fileLines, lineStart, lineEnd),
           });
           currentComponent = name;
         }
