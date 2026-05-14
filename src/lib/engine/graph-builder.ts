@@ -60,13 +60,13 @@ export async function buildGraph(rootPath: string): Promise<ReactScopeGraph> {
   });
 
   for (const edge of allEdges) {
-    if (edge.type === EdgeType.RENDERS) {
+    if (edge.type === EdgeType.RENDERS || edge.type === EdgeType.PASSES_PROP) {
       const sourceNode = allNodes.find(n => n.id === edge.source);
       if (!sourceNode) continue;
 
       const targetName = edge.target;
       const imports = fileImports.get(sourceNode.filePath) || [];
-      
+
       // Try to find the target based on imports first
       const matchingImport = imports.find(i => i.localName === targetName);
       let resolvedId: string | undefined;
@@ -80,7 +80,7 @@ export async function buildGraph(rootPath: string): Promise<ReactScopeGraph> {
         // Fallback to global search
         resolvedId = (componentMap.get(targetName) || [])[0];
       }
-      
+
       if (resolvedId) {
         resolvedEdges.push({
           ...edge,

@@ -28,6 +28,10 @@ export interface NodeData {
   codeSnippet?: string;
   lineStart?: number;
   lineEnd?: number;
+  directive?: 'use client' | 'use server';
+  contextReads?: string[];
+  effectDeps?: string[][];
+  nextjsType?: 'page' | 'layout' | 'loading' | 'error' | 'template';
 }
 
 export interface EdgeData {
