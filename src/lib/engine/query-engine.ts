@@ -5,6 +5,7 @@
 
 import { ReactScopeGraph, ImpactAnalysis, EdgeType, NodeType } from './types';
 import { AIService } from '../services/ai-service';
+import { estimateTokens } from './graph-builder';
 
 export class QueryEngine {
   private graph: ReactScopeGraph;
@@ -77,22 +78,23 @@ export class QueryEngine {
 
   /**
    * Generates a token-optimized context block for an AI query.
-   * Instead of sending the whole repo, it sends:
-   * 1. The target component code
-   * 2. The immediate dependencies (props/types)
-   * 3. A list of high-level dependents (for impact awareness)
+   * Returns actual code snippets for:
+   * 1. The target component
+   * 2. Its immediate render dependencies
+   * 3. The hooks it uses
+   * Token savings are measured against the full-repo baseline.
    */
   public async getAIReadyContext(query: string): Promise<any> {
     const search = query.toLowerCase();
     const aiService = new AIService();
-    
-    // 1. Find the primary node of interest (Case-insensitive check)
-    let targetNode = this.graph.nodes.find(n => 
-      n.name.toLowerCase() === search || 
+
+    // 1. Find the primary node of interest
+    let targetNode = this.graph.nodes.find(n =>
+      n.name.toLowerCase() === search ||
       n.name.toLowerCase().includes(search)
     );
 
-    // SMARTER SEARCH: If no direct match, use Semantic Search
+    // Semantic fallback if a key is configured
     if (!targetNode && (process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY)) {
       try {
         const miniContext = await this.getMinimalContext(query);
@@ -112,29 +114,63 @@ export class QueryEngine {
       };
     }
 
-    // 2. Identify neighbors (Immediate dependencies + Dependents)
-    const renderDeps = this.renderAdjacency.get(targetNode.id) || [];
-    const dependents = this.reverseRenderAdjacency.get(targetNode.id) || [];
-    
-    // 3. Extract relevant snippets (Heuristic: Target + Props + Hooks)
-    // In a real app, we would read the file. Since we are in the agent, we'll assume the engine has access.
-    
+    // 2. Collect relevant nodes: target + its render deps + its hooks
+    const renderDepIds = this.renderAdjacency.get(targetNode.id) || [];
+    const dependentIds = this.reverseRenderAdjacency.get(targetNode.id) || [];
+
+    const hookIds = this.graph.edges
+      .filter(e => e.source === targetNode!.id && e.type === EdgeType.DEPENDS_ON)
+      .map(e => e.target);
+
+    const contextNodeIds = new Set<string>([targetNode.id, ...renderDepIds, ...hookIds]);
+    const contextNodes = Array.from(contextNodeIds)
+      .map(id => this.graph.nodes.find(n => n.id === id))
+      .filter(Boolean) as typeof this.graph.nodes;
+
+    // 3. Build the code context string from real snippets
+    const snippetParts: string[] = [];
+    for (const node of contextNodes) {
+      if (node.codeSnippet) {
+        snippetParts.push(`// ${node.filePath} — ${node.name}\n${node.codeSnippet}`);
+      }
+    }
+    const contextCode = snippetParts.join('\n\n');
+
+    // 4. Measure actual token counts
+    const totalRepoTokens = this.graph.metadata.totalRawTokens;
+    const contextTokens = estimateTokens(contextCode);
+    const savedTokens = Math.max(0, totalRepoTokens - contextTokens);
+    const savingsPct = totalRepoTokens > 0
+      ? ((savedTokens / totalRepoTokens) * 100).toFixed(1)
+      : '0';
+
     return {
       target: {
         name: targetNode.name,
         path: targetNode.filePath,
-        type: targetNode.type
+        type: targetNode.type,
+        snippet: targetNode.codeSnippet ?? null,
       },
       context: {
-        renderDependencies: renderDeps.map(id => this.graph.nodes.find(n => n.id === id)?.name),
-        affectedByChange: dependents.map(id => this.graph.nodes.find(n => n.id === id)?.name),
-        impactAnalysis: this.getImpactAnalysis(targetNode.id)
+        renderDependencies: renderDepIds.map(id => {
+          const n = this.graph.nodes.find(x => x.id === id);
+          return { name: n?.name, path: n?.filePath, snippet: n?.codeSnippet ?? null };
+        }),
+        hooksUsed: hookIds.map(id => {
+          const n = this.graph.nodes.find(x => x.id === id);
+          return n?.name;
+        }),
+        affectedByChange: dependentIds.map(id => this.graph.nodes.find(n => n.id === id)?.name),
+        impactAnalysis: this.getImpactAnalysis(targetNode.id),
       },
       optimization: {
-        originalRepoFiles: this.graph.metadata.totalFiles,
-        contextNodes: 1 + renderDeps.length + dependents.length,
-        tokenSavingsEstimate: "90-95%"
-      }
+        totalRepoTokens,
+        contextTokens,
+        savedTokens,
+        tokenSavingsPct: `${savingsPct}%`,
+        contextNodes: contextNodes.length,
+        totalRepoFiles: this.graph.metadata.totalFiles,
+      },
     };
   }
 
@@ -149,7 +185,7 @@ export class QueryEngine {
     // Try AI reasoning if any key is present
     if (process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY) {
       try {
-        const nodeList = this.graph.nodes.map(n => `ID: ${n.id}, Name: ${n.name}, Description: ${n.description || 'N/A'}`).join('\n');
+        const nodeList = this.graph.nodes.map(n => `ID: ${n.id}, Name: ${n.name}, File: ${n.filePath}`).join('\n');
         const prompt = `Given the following React components in a graph:\n${nodeList}\n\nQuery: "${query}"\n\nIdentify the top 3 most relevant component IDs for this query. Return ONLY the IDs separated by commas.`;
         
         const response = await aiService.complete(prompt);

@@ -44,6 +44,7 @@ export interface ReactScopeGraph {
     parsedAt: string;
     rootPath: string;
     totalFiles: number;
+    totalRawTokens: number;
   };
 }
 

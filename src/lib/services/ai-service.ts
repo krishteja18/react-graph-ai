@@ -41,12 +41,12 @@ export class AIService {
     if (!apiKey) throw new Error('GEMINI_API_KEY is not set');
 
     const genAI = new GoogleGenAI({ apiKey });
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
+    const result = await genAI.models.generateContent({
+      model: 'gemini-1.5-flash',
+      contents: prompt,
+    });
     return {
-      content: response.text(),
+      content: result.text ?? '',
       provider: 'gemini'
     };
   }
