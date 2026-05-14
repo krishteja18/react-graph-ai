@@ -15,7 +15,23 @@ export function estimateTokens(text: string): number {
 }
 
 export async function buildGraph(rootPath: string): Promise<ReactScopeGraph> {
-  const files = await glob('**/*.{ts,tsx,js,jsx}', { cwd: rootPath, absolute: true, ignore: ['**/node_modules/**', '**/dist/**'] });
+  const files = await glob('**/*.{ts,tsx,js,jsx}', {
+    cwd: rootPath,
+    absolute: true,
+    ignore: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/.next/**',
+      '**/out/**',
+      '**/build/**',
+      '**/.turbo/**',
+      '**/.cache/**',
+      '**/coverage/**',
+      '**/*.test.{ts,tsx,js,jsx}',
+      '**/*.spec.{ts,tsx,js,jsx}',
+      '**/__tests__/**',
+    ],
+  });
   
   const allNodes: NodeData[] = [];
   const allEdges: EdgeData[] = [];

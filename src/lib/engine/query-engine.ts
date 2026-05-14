@@ -279,7 +279,7 @@ export class QueryEngine {
         const miniContext = await this.getMinimalContext(query);
         if (miniContext.relevantNodes.length > 0) {
           targetNode = miniContext.relevantNodes[0];
-          console.log(`Semantic match found: ${targetNode.name} for query "${query}"`);
+          console.error(`Semantic match found: ${targetNode.name} for query "${query}"`);
         }
       } catch (err) {
         console.error('Semantic match failed during AI context prep:', err);
