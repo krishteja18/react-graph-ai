@@ -34,7 +34,8 @@ export default function App() {
   const [aiQuery, setAiQuery] = useState('');
   const [aiResponse, setAiResponse] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [graphStats, setGraphStats] = useState({ nodes: 0, edges: 0, files: 0 });
+  const [graphStats, setGraphStats] = useState({ nodes: 0, edges: 0, files: 0, totalRawTokens: 0 });
+  const [lastOptimization, setLastOptimization] = useState<any>(null);
 
   const fetchGraph = useCallback(async () => {
     setIsAnalyzing(true);
@@ -45,7 +46,8 @@ export default function App() {
       setGraphStats({
         nodes: data.nodes.length,
         edges: data.edges.length,
-        files: data.metadata.totalFiles
+        files: data.metadata.totalFiles,
+        totalRawTokens: data.metadata.totalRawTokens ?? 0,
       });
 
       const reactFlowNodes = data.nodes.map((n: any, idx: number) => ({
@@ -113,6 +115,7 @@ export default function App() {
       });
       const data = await res.json();
       setAiResponse(data.answer);
+      if (data.optimization) setLastOptimization(data.optimization);
     } catch (e) {
       setAiResponse('// ERROR: ENGINE_CONNECTION_FAILED');
     }
@@ -154,13 +157,23 @@ export default function App() {
         </div>
         <div className="p-4 border-r border-[#1F2937] flex flex-col gap-1">
           <span className="text-[9px] uppercase tracking-tighter opacity-40">Context Reduction</span>
-          <span className="text-2xl font-light text-white">-92.1%</span>
-          <span className="text-[10px] opacity-50 text-cyan-500">LLM OPTIMIZED</span>
+          <span className="text-2xl font-light text-white">
+            {lastOptimization ? `-${lastOptimization.tokenSavingsPct}` : '--'}
+          </span>
+          <span className="text-[10px] opacity-50 text-cyan-500">
+            {lastOptimization
+              ? `${lastOptimization.contextTokens} / ${lastOptimization.totalRepoTokens} tokens`
+              : 'Run a query to measure'}
+          </span>
         </div>
         <div className="p-4 flex flex-col gap-1">
           <span className="text-[9px] uppercase tracking-tighter opacity-40">File Memory</span>
           <span className="text-2xl font-light text-white">{graphStats.files} Files</span>
-          <span className="text-[10px] opacity-50">Indexed in graph memory</span>
+          <span className="text-[10px] opacity-50">
+            {graphStats.totalRawTokens > 0
+              ? `~${graphStats.totalRawTokens.toLocaleString()} repo tokens`
+              : 'Indexed in graph memory'}
+          </span>
         </div>
       </div>
 
