@@ -1,0 +1,46 @@
+# ReactPrune — Graph Memory Active
+
+This project uses ReactPrune for token-optimized React/Next.js context.
+The MCP server provides a behavioral graph of this codebase.
+
+## Rules
+
+### Always call get_minimal_context first
+Before answering ANY question about this codebase — bugs, features,
+refactors, or architecture — call get_minimal_context with the query.
+Do NOT read source files directly. The graph returns structural context
+at 10-100x fewer tokens than reading files.
+
+### Always call get_impact_analysis before changing shared components
+Before editing any component used by other components, call
+get_impact_analysis. If impact is HIGH, warn the developer first.
+
+### Use trace_state_flow for state and data flow questions
+When asked about state, re-renders, or data flow, call trace_state_flow.
+Do not trace state manually by reading files.
+
+### Use get_component_tree for hierarchy questions
+When asked about component structure or render relationships, call
+get_component_tree instead of reading files.
+
+### Use list_components to discover the codebase
+When you need to know what components exist before querying a specific one,
+call list_components first.
+
+## Workflow
+
+Developer: "Fix the login bug in Navbar"
+1. get_minimal_context("Navbar login") — get structural context
+2. get_impact_analysis("Navbar") — check blast radius
+3. Make the targeted fix using only what the graph returned
+4. Do not open Navbar.tsx or any related file directly
+
+## Token cost reference
+
+| Task                  | Tool                  | Tokens    |
+|-----------------------|-----------------------|-----------|
+| Fix a bug             | get_minimal_context   | ~200-500  |
+| Refactor a component  | get_minimal_context + get_impact_analysis | ~400-800 |
+| Trace data flow       | trace_state_flow      | ~200-400  |
+| Explore structure     | get_component_tree    | ~300-600  |
+| Direct file read      | (avoid)               | ~2k-20k   |

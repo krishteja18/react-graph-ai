@@ -14,7 +14,7 @@ async function runCli() {
 
   const absoluteRoot = path.resolve(process.cwd(), target);
 
-  console.log(`🚀 ReactScope AI: Analyzing ${absoluteRoot}...`);
+  console.log(`🚀 ReactPrune: Analyzing ${absoluteRoot}...`);
 
   try {
     const graph = await buildGraph(absoluteRoot);
@@ -49,6 +49,26 @@ async function runCli() {
       }
       const result = engine.getImpactAnalysis(nodeName);
       console.log('\n🔍 Impact Analysis for', nodeName);
+      console.log(JSON.stringify(result, null, 2));
+    }
+
+    if (command === 'trace') {
+      const nodeName = args[2];
+      if (!nodeName) {
+        console.log('Usage: npx tsx src/cli/index.ts trace . <stateName>');
+        return;
+      }
+      const result = engine.traceStateFlow(nodeName);
+      console.log(JSON.stringify(result, null, 2));
+    }
+
+    if (command === 'tree') {
+      const nodeName = args[2];
+      if (!nodeName) {
+        console.log('Usage: npx tsx src/cli/index.ts tree . <componentName>');
+        return;
+      }
+      const result = engine.getComponentTree(nodeName);
       console.log(JSON.stringify(result, null, 2));
     }
 
