@@ -15,9 +15,9 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // Status bar — shows index state and component count
   statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-  statusBarItem.command = 'reactprune.rebuildGraph';
-  statusBarItem.text = '$(loading~spin) ReactPrune: Indexing...';
-  statusBarItem.tooltip = 'ReactPrune: Click to rebuild graph index';
+  statusBarItem.command = 'react-graph-ai.rebuildGraph';
+  statusBarItem.text = '$(loading~spin) React Graph AI: Indexing...';
+  statusBarItem.tooltip = 'React Graph AI: Click to rebuild graph index';
   statusBarItem.show();
   context.subscriptions.push(statusBarItem);
 
@@ -36,9 +36,9 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // Register commands
   context.subscriptions.push(
-    vscode.commands.registerCommand('reactprune.copyContext', cmdCopyContext),
-    vscode.commands.registerCommand('reactprune.analyzeImpact', cmdAnalyzeImpact),
-    vscode.commands.registerCommand('reactprune.rebuildGraph', rebuildGraph),
+    vscode.commands.registerCommand('react-graph-ai.copyContext', cmdCopyContext),
+    vscode.commands.registerCommand('react-graph-ai.analyzeImpact', cmdAnalyzeImpact),
+    vscode.commands.registerCommand('react-graph-ai.rebuildGraph', rebuildGraph),
   );
 }
 
@@ -46,21 +46,21 @@ export async function activate(context: vscode.ExtensionContext) {
 
 async function rebuildGraph() {
   if (!workspaceRoot) return;
-  statusBarItem.text = '$(loading~spin) ReactPrune: Indexing...';
+  statusBarItem.text = '$(loading~spin) React Graph AI: Indexing...';
   try {
     const graph = await buildGraph(workspaceRoot);
     engine = new QueryEngine(graph);
     totalRawTokens = graph.metadata.totalRawTokens;
     const componentCount = graph.nodes.filter(n => n.type === 'COMPONENT').length;
-    statusBarItem.text = `$(graph) ReactPrune: ${componentCount} components`;
+    statusBarItem.text = `$(graph) React Graph AI: ${componentCount} components`;
     statusBarItem.tooltip = [
-      `ReactPrune — ${graph.metadata.totalFiles} files indexed`,
+      `React Graph AI — ${graph.metadata.totalFiles} files indexed`,
       `~${totalRawTokens.toLocaleString()} repo tokens`,
       `Click to rebuild`,
     ].join('\n');
   } catch (err: any) {
-    statusBarItem.text = '$(error) ReactPrune: Index failed';
-    vscode.window.showErrorMessage(`ReactPrune: Failed to build graph — ${err.message}`);
+    statusBarItem.text = '$(error) React Graph AI: Index failed';
+    vscode.window.showErrorMessage(`React Graph AI: Failed to build graph — ${err.message}`);
   }
 }
 
@@ -73,7 +73,7 @@ function scheduleRebuild() {
 
 async function cmdCopyContext() {
   if (!engine) {
-    vscode.window.showWarningMessage('ReactPrune: Graph is still indexing, please wait.');
+    vscode.window.showWarningMessage('React Graph AI: Graph is still indexing, please wait.');
     return;
   }
 
@@ -84,7 +84,7 @@ async function cmdCopyContext() {
     : '';
 
   const query = await vscode.window.showInputBox({
-    title: 'ReactPrune: Copy AI Context',
+    title: 'React Graph AI: Copy AI Context',
     prompt: 'Enter a component name or describe what you want to fix',
     value: defaultQuery,
     placeHolder: 'e.g. Navbar login button',
@@ -96,7 +96,7 @@ async function cmdCopyContext() {
   if (context.error) {
     const pick = await vscode.window.showQuickPick(
       (context.suggestions ?? []).map((s: string) => ({ label: s })),
-      { title: `ReactPrune: No match for "${query}" — pick a component` }
+      { title: `React Graph AI: No match for "${query}" — pick a component` }
     );
     if (!pick) return;
     return cmdCopyContextWithQuery(pick.label as string);
@@ -105,7 +105,7 @@ async function cmdCopyContext() {
   await vscode.env.clipboard.writeText(context.contextSummary);
 
   vscode.window.showInformationMessage(
-    `ReactPrune: Copied! ${context.optimization.contextTokens} tokens sent vs ${totalRawTokens.toLocaleString()} in repo — saved ${context.optimization.tokenSavingsPct}`,
+    `React Graph AI: Copied! ${context.optimization.contextTokens} tokens sent vs ${totalRawTokens.toLocaleString()} in repo — saved ${context.optimization.tokenSavingsPct}`,
     'Paste into AI'
   );
 }
@@ -114,12 +114,12 @@ async function cmdCopyContextWithQuery(query: string) {
   if (!engine) return;
   const context = await engine.getAIReadyContext(query);
   if (context.error) {
-    vscode.window.showErrorMessage(`ReactPrune: ${context.error}`);
+    vscode.window.showErrorMessage(`React Graph AI: ${context.error}`);
     return;
   }
   await vscode.env.clipboard.writeText(context.contextSummary);
   vscode.window.showInformationMessage(
-    `ReactPrune: Copied ${query} — ${context.optimization.contextTokens} tokens (saved ${context.optimization.tokenSavingsPct})`
+    `React Graph AI: Copied ${query} — ${context.optimization.contextTokens} tokens (saved ${context.optimization.tokenSavingsPct})`
   );
 }
 
@@ -127,7 +127,7 @@ async function cmdCopyContextWithQuery(query: string) {
 
 async function cmdAnalyzeImpact() {
   if (!engine) {
-    vscode.window.showWarningMessage('ReactPrune: Graph is still indexing, please wait.');
+    vscode.window.showWarningMessage('React Graph AI: Graph is still indexing, please wait.');
     return;
   }
 
@@ -137,7 +137,7 @@ async function cmdAnalyzeImpact() {
     : '';
 
   const componentName = await vscode.window.showInputBox({
-    title: 'ReactPrune: Analyze Impact',
+    title: 'React Graph AI: Analyze Impact',
     prompt: 'Which component are you about to change?',
     value: defaultName,
     placeHolder: 'e.g. Button',
@@ -151,7 +151,7 @@ async function cmdAnalyzeImpact() {
 
     if (result.impactLevel === 'HIGH') {
       vscode.window.showWarningMessage(
-        `⚠️ ReactPrune: ${componentName} has HIGH impact — ${result.dependents.length} dependents will re-render: ${dependentList}${more}`,
+        `⚠️ React Graph AI: ${componentName} has HIGH impact — ${result.dependents.length} dependents will re-render: ${dependentList}${more}`,
         'Copy Full Analysis'
       ).then(action => {
         if (action === 'Copy Full Analysis') {
@@ -160,15 +160,15 @@ async function cmdAnalyzeImpact() {
       });
     } else if (result.impactLevel === 'MEDIUM') {
       vscode.window.showWarningMessage(
-        `ReactPrune: ${componentName} has MEDIUM impact — ${result.dependents.length} dependents: ${dependentList}${more}`
+        `React Graph AI: ${componentName} has MEDIUM impact — ${result.dependents.length} dependents: ${dependentList}${more}`
       );
     } else {
       vscode.window.showInformationMessage(
-        `ReactPrune: ${componentName} has LOW impact — ${result.dependents.length === 0 ? 'no dependents' : dependentList}`
+        `React Graph AI: ${componentName} has LOW impact — ${result.dependents.length === 0 ? 'no dependents' : dependentList}`
       );
     }
   } catch (err: any) {
-    vscode.window.showErrorMessage(`ReactPrune: ${err.message}`);
+    vscode.window.showErrorMessage(`React Graph AI: ${err.message}`);
   }
 }
 

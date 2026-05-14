@@ -14,7 +14,7 @@ import { QueryEngine } from "../lib/engine/query-engine.js";
 import path from "path";
 
 /**
- * ReactPrune MCP Server
+ * React Graph AI MCP Server
  * Exposes the Graph Memory Engine as tools for AI models.
  */
 
@@ -27,7 +27,7 @@ async function main() {
 
   const server = new Server(
     {
-      name: "reactprune",
+      name: "react-graph-ai",
       version: "1.0.0",
     },
     {
@@ -156,8 +156,8 @@ async function main() {
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`ReactPrune MCP Server running — targeting: ${rootDir}`);
-  console.error(`Tip: copy the matching rules file from node_modules/reactprune/templates/ into your project root to enforce graph-first context automatically.`);
+  console.error(`React Graph AI MCP Server running — targeting: ${rootDir}`);
+  console.error(`Tip: copy the matching rules file from node_modules/react-graph-ai/templates/ into your project root to enforce graph-first context automatically.`);
 }
 
 main().catch((error) => {

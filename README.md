@@ -1,10 +1,10 @@
-# ⚡ ReactPrune — Stop Wasting Tokens on Your React Codebase
+# ⚡ React Graph AI — Stop Wasting Tokens on Your React Codebase
 
 > **Cut LLM token usage by 90%+ on every AI request. Works with GitHub Copilot, Claude, ChatGPT, Cursor, Windsurf, and every AI tool you already use.**
 
-ReactPrune builds a **Behavioral Graph** of your React/Next.js codebase and delivers only the precise structural context an AI needs — not the entire repo. Your AI gets smarter answers. You pay a fraction of the cost.
+React Graph AI builds a **Behavioral Graph** of your React/Next.js codebase and delivers only the precise structural context an AI needs — not the entire repo. Your AI gets smarter answers. You pay a fraction of the cost.
 
-![npm](https://img.shields.io/badge/npm-reactprune-red)
+![npm](https://img.shields.io/badge/npm-react-graph-ai-red)
 ![MCP](https://img.shields.io/badge/MCP-Claude%20%7C%20Cursor%20%7C%20Windsurf-green)
 ![VS Code](https://img.shields.io/badge/VS%20Code-Extension-blue)
 ![License](https://img.shields.io/badge/License-Apache%202.0-blue)
@@ -15,7 +15,7 @@ ReactPrune builds a **Behavioral Graph** of your React/Next.js codebase and deli
 
 Every time you ask Copilot, Claude, or ChatGPT a question about your React app, your tool dumps thousands of lines of irrelevant code into the prompt. You pay for every token.
 
-| Scenario | Without ReactPrune | With ReactPrune |
+| Scenario | Without React Graph AI | With React Graph AI |
 |---|---|---|
 | Fix a bug in `Navbar` | ~15,000 tokens | ~300 tokens |
 | Refactor an auth component | ~40,000 tokens | ~600 tokens |
@@ -28,7 +28,7 @@ Token counts are measured from real structural graph output — not estimated.
 
 ## 🧠 How It Works
 
-Standard AI tools send full files. ReactPrune sends **structural summaries**.
+Standard AI tools send full files. React Graph AI sends **structural summaries**.
 
 Instead of shipping 80 lines of raw `Navbar.tsx`:
 
@@ -39,7 +39,7 @@ import { useAuth } from '../hooks/useAuth';
 // ... 80 lines of JSX, styles, handlers ...
 ```
 
-ReactPrune sends a compressed behavioral summary (~80 tokens):
+React Graph AI sends a compressed behavioral summary (~80 tokens):
 
 ```
 [COMPONENT] Navbar · src/components/Navbar.tsx:12-95
@@ -63,7 +63,7 @@ impact: HIGH · dependents: App, DashboardLayout, AdminShell
 Install from the VS Code Marketplace:
 
 ```
-ext install reactprune.reactprune
+ext install react-graph-ai.react-graph-ai
 ```
 
 - Status bar shows your indexed component count instantly
@@ -79,9 +79,9 @@ Add 4 lines to your MCP config. Zero cloning required:
 ```json
 {
   "mcpServers": {
-    "reactprune": {
+    "react-graph-ai": {
       "command": "npx",
-      "args": ["-y", "reactprune"],
+      "args": ["-y", "react-graph-ai"],
       "cwd": "/path/to/your-react-app"
     }
   }
@@ -92,38 +92,38 @@ Then drop the matching rules file into your project root to make token reduction
 
 ```bash
 # Claude Code / Antigravity
-cp node_modules/reactprune/templates/CLAUDE.md .
+cp node_modules/react-graph-ai/templates/CLAUDE.md .
 
 # Cursor
-cp node_modules/reactprune/templates/.cursorrules .
+cp node_modules/react-graph-ai/templates/.cursorrules .
 
 # Windsurf
-cp node_modules/reactprune/templates/.windsurfrules .
+cp node_modules/react-graph-ai/templates/.windsurfrules .
 ```
 
 ### Option 3 — CLI
 
 ```bash
 # Analyze your entire React project
-npx reactprune analyze ./your-app
+npx react-graph-ai analyze ./your-app
 
 # Get token-optimized context for any query
-npx reactprune context ./your-app "Navbar login button"
+npx react-graph-ai context ./your-app "Navbar login button"
 
 # Check blast radius before changing a component
-npx reactprune impact ./your-app Button
+npx react-graph-ai impact ./your-app Button
 
 # Trace state propagation
-npx reactprune trace ./your-app isOpen
+npx react-graph-ai trace ./your-app isOpen
 ```
 
 ---
 
-## 🔥 What Makes ReactPrune Different
+## 🔥 What Makes React Graph AI Different
 
 ### React-Aware — Not Generic RAG
 
-Generic AI tools use semantic search or file chunking. ReactPrune understands **React relationships**:
+Generic AI tools use semantic search or file chunking. React Graph AI understands **React relationships**:
 
 - **Component render hierarchy** — who renders what, how deep
 - **Props flow** — exactly which props are passed between which components
@@ -131,12 +131,12 @@ Generic AI tools use semantic search or file chunking. ReactPrune understands **
 - **State propagation** — trace any `useState`/`useReducer` value through every re-render path
 - **Next.js boundaries** — `'use client'` / `'use server'` directives, `page.tsx`, `layout.tsx`, `loading.tsx`
 
-When you say *"fix the login bug"*, ReactPrune doesn't send `Footer.tsx`. It sends `Navbar`, `LoginButton`, `useAuth`, and their structural relationships. Nothing else.
+When you say *"fix the login bug"*, React Graph AI doesn't send `Footer.tsx`. It sends `Navbar`, `LoginButton`, `useAuth`, and their structural relationships. Nothing else.
 
 ### Blast Radius Analysis — Before You Break Anything
 
 ```bash
-npx reactprune impact Button
+npx react-graph-ai impact Button
 ```
 
 ```json
@@ -152,7 +152,7 @@ Know exactly what will break **before** you change a shared component. Your AI g
 
 ### Real Token Measurement
 
-ReactPrune measures actual token savings on every query — not a made-up percentage. The dashboard and VS Code extension both show you live numbers: `312 tokens used vs 94,000 in repo`.
+React Graph AI measures actual token savings on every query — not a made-up percentage. The dashboard and VS Code extension both show you live numbers: `312 tokens used vs 94,000 in repo`.
 
 ---
 
@@ -187,7 +187,7 @@ Open `http://localhost:3000`:
 
 ## 🔌 Multi-Provider Semantic Search
 
-When keyword search isn't enough, ReactPrune falls back to semantic reasoning. Set your preferred provider:
+When keyword search isn't enough, React Graph AI falls back to semantic reasoning. Set your preferred provider:
 
 ```env
 AI_PROVIDER="anthropic"   # options: gemini, openai, anthropic
@@ -201,7 +201,7 @@ ANTHROPIC_API_KEY="sk-ant-..."
 Embed the graph engine directly into your own tools:
 
 ```typescript
-import { buildGraph, QueryEngine } from 'reactprune';
+import { buildGraph, QueryEngine } from 'react-graph-ai';
 
 const graph = await buildGraph('./src');
 const engine = new QueryEngine(graph);

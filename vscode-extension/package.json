@@ -1,9 +1,9 @@
 {
-  "name": "reactprune",
-  "displayName": "ReactPrune — Token-Slim AI Context for React",
+  "name": "react-graph-ai",
+  "displayName": "React Graph AI — Token-Slim AI Context for React",
   "description": "Prune your React/Next.js codebase to minimal AI context. Reduces LLM token usage by 90%+ for GitHub Copilot, Claude, ChatGPT, and any AI tool.",
   "version": "1.0.0",
-  "publisher": "reactprune",
+  "publisher": "react-graph-ai",
   "license": "Apache-2.0",
   "engines": { "vscode": "^1.80.0" },
   "categories": ["AI", "Other"],
@@ -17,43 +17,43 @@
   "contributes": {
     "commands": [
       {
-        "command": "reactprune.copyContext",
+        "command": "react-graph-ai.copyContext",
         "title": "Copy AI Context (Token-Optimized)",
-        "category": "ReactPrune"
+        "category": "React Graph AI"
       },
       {
-        "command": "reactprune.analyzeImpact",
+        "command": "react-graph-ai.analyzeImpact",
         "title": "Analyze Component Impact",
-        "category": "ReactPrune"
+        "category": "React Graph AI"
       },
       {
-        "command": "reactprune.rebuildGraph",
+        "command": "react-graph-ai.rebuildGraph",
         "title": "Rebuild Graph Index",
-        "category": "ReactPrune"
+        "category": "React Graph AI"
       }
     ],
     "menus": {
       "editor/context": [
         {
-          "command": "reactprune.copyContext",
+          "command": "react-graph-ai.copyContext",
           "when": "resourceExtname =~ /\\.(tsx|jsx|ts|js)$/",
-          "group": "reactprune@1"
+          "group": "react-graph-ai@1"
         },
         {
-          "command": "reactprune.analyzeImpact",
+          "command": "react-graph-ai.analyzeImpact",
           "when": "resourceExtname =~ /\\.(tsx|jsx|ts|js)$/",
-          "group": "reactprune@2"
+          "group": "react-graph-ai@2"
         }
       ]
-    },
-    "keybindings": [
-      {
-        "command": "reactprune.copyContext",
-        "key": "ctrl+shift+p",
-        "mac": "cmd+shift+p",
-        "when": "false"
-      }
-    ]
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/krishteja18/react-graph-ai.git"
+  },
+  "homepage": "https://github.com/krishteja18/react-graph-ai#readme",
+  "bugs": {
+    "url": "https://github.com/krishteja18/react-graph-ai/issues"
   },
   "scripts": {
     "build": "tsup",

@@ -1,14 +1,14 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig([
-  // Unified CLI + MCP bin entry (the reactprune executable)
+  // Unified CLI + MCP bin entry (the react-graph-ai executable)
   {
     entry: { bin: 'src/bin.ts' },
     outDir: 'dist',
     format: ['esm'],
     target: 'node18',
     splitting: false,
-    clean: false,
+    clean: true,
     banner: { js: '#!/usr/bin/env node' },
   },
   // Internal modules — no shebang, no banner
@@ -21,6 +21,6 @@ export default defineConfig([
     format: ['esm'],
     target: 'node18',
     splitting: false,
-    clean: true,
+    clean: false,
   },
 ]);

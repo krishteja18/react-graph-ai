@@ -23,7 +23,7 @@ const TARGET_DIR = process.env.TARGET_DIR
   ? path.resolve(process.argv[2])
   : process.cwd();
 
-console.log(`ReactPrune: Targeting directory → ${TARGET_DIR}`);
+console.log(`React Graph AI: Targeting directory → ${TARGET_DIR}`);
 
 let memoizedGraph: any = null;
 let queryEngine: QueryEngine | null = null;
@@ -72,7 +72,7 @@ try {
 
 // API Routes
 app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", engine: "ReactPrune", targetDir: TARGET_DIR });
+  res.json({ status: "ok", engine: "React Graph AI", targetDir: TARGET_DIR });
 });
 
 app.get("/api/graph", async (req, res) => {
@@ -121,7 +121,7 @@ app.post("/api/ask", async (req, res) => {
     }
 
     // Build prompt from structural summaries — the actual token-optimized representation
-    const prompt = `You are ReactPrune, a React architectural assistant.
+    const prompt = `You are React Graph AI, a React architectural assistant.
 
 The developer asked: "${query}"
 
@@ -161,7 +161,7 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`ReactPrune Engine running on http://localhost:${PORT}`);
+    console.log(`React Graph AI Engine running on http://localhost:${PORT}`);
     console.log(`Target directory: ${TARGET_DIR}`);
   });
 }

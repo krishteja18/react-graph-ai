@@ -11,7 +11,7 @@ export const Dashboard = () => {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <main className="p-8 text-center">
-        <h2 className="text-2xl font-bold">Welcome to ReactPrune</h2>
+        <h2 className="text-2xl font-bold">Welcome to React Graph AI</h2>
         <p className="text-gray-600 mt-2">The AI-powered React Graph Engine is currently analyzing this component.</p>
       </main>
     </div>

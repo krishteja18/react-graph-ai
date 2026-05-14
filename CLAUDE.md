@@ -1,6 +1,6 @@
-# ReactPrune — Graph Memory Active
+# React Graph AI — Graph Memory Active
 
-This project is connected to ReactPrune, a behavioral graph engine that
+This project is connected to React Graph AI, a behavioral graph engine that
 provides token-optimized context for this React/Next.js codebase.
 
 ## Rules — follow these for every coding task

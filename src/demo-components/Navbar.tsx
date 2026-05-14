@@ -11,7 +11,7 @@ export function Navbar() {
 
   return (
     <nav className="flex justify-between p-4 bg-white border-b">
-      <div className="font-bold">ReactPrune Demo</div>
+      <div className="font-bold">React Graph AI Demo</div>
       <div>
         <Button 
           label={isLoggedIn ? 'Logout' : 'Login'} 

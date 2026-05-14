@@ -127,7 +127,7 @@ export default function App() {
       <header className="h-14 border-b border-[#1F2937] flex items-center justify-between px-6 bg-[#0D0F14]">
         <div className="flex items-center gap-4">
           <div className="w-3 h-3 rounded-full bg-cyan-500 shadow-[0_0_8px_#06b6d4] animate-pulse"></div>
-          <h1 className="text-sm font-bold tracking-widest text-cyan-400">REACTPRUNE // GRAPH ENGINE</h1>
+          <h1 className="text-sm font-bold tracking-widest text-cyan-400">REACT GRAPH AI // GRAPH ENGINE</h1>
           <span className="text-[10px] px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/20 text-cyan-500">v1.0.4-BETA</span>
         </div>
         <div className="flex items-center gap-8 text-[11px] opacity-60 hidden md:flex">

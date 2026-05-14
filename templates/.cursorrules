@@ -1,6 +1,6 @@
-# ReactPrune — Graph Memory Active
+# React Graph AI — Graph Memory Active
 
-This project uses ReactPrune for token-optimized React/Next.js context.
+This project uses React Graph AI for token-optimized React/Next.js context.
 The MCP server provides a behavioral graph of this codebase.
 
 ## Rules

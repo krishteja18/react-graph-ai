@@ -14,7 +14,7 @@ async function runCli() {
 
   const absoluteRoot = path.resolve(process.cwd(), target);
 
-  console.log(`🚀 ReactPrune: Analyzing ${absoluteRoot}...`);
+  console.log(`🚀 React Graph AI: Analyzing ${absoluteRoot}...`);
 
   try {
     const graph = await buildGraph(absoluteRoot);
@@ -44,7 +44,7 @@ async function runCli() {
     if (command === 'impact') {
       const nodeName = args[2];
       if (!nodeName) {
-        console.log('Usage: npx reactprune impact <path> <ComponentName>');
+        console.log('Usage: npx react-graph-ai impact <path> <ComponentName>');
         return;
       }
       const result = engine.getImpactAnalysis(nodeName);
@@ -55,7 +55,7 @@ async function runCli() {
     if (command === 'trace') {
       const nodeName = args[2];
       if (!nodeName) {
-        console.log('Usage: npx reactprune trace <path> <stateName>');
+        console.log('Usage: npx react-graph-ai trace <path> <stateName>');
         return;
       }
       const result = engine.traceStateFlow(nodeName);
@@ -65,7 +65,7 @@ async function runCli() {
     if (command === 'tree') {
       const nodeName = args[2];
       if (!nodeName) {
-        console.log('Usage: npx reactprune tree <path> <componentName>');
+        console.log('Usage: npx react-graph-ai tree <path> <componentName>');
         return;
       }
       const result = engine.getComponentTree(nodeName);
