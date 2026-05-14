@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ReactScopeGraph, ImpactAnalysis, EdgeType, NodeType } from './types';
+import { ReactScopeGraph, ImpactAnalysis, EdgeType, NodeType, NodeData } from './types';
 import { AIService } from '../services/ai-service';
 import { estimateTokens } from './graph-builder';
 
@@ -293,7 +293,8 @@ export class QueryEngine {
       };
     }
 
-    // 2. Collect relevant nodes: target + its render deps + its hooks
+    // 2. Collect relevant component nodes: target + its immediate render deps.
+    //    Hooks are captured inside each component's structural summary — not as separate nodes.
     const renderDepIds = this.renderAdjacency.get(targetNode.id) || [];
     const dependentIds = this.reverseRenderAdjacency.get(targetNode.id) || [];
 
@@ -301,21 +302,18 @@ export class QueryEngine {
       .filter(e => e.source === targetNode!.id && e.type === EdgeType.DEPENDS_ON)
       .map(e => e.target);
 
-    const contextNodeIds = new Set<string>([targetNode.id, ...renderDepIds, ...hookIds]);
+    const contextNodeIds = new Set<string>([targetNode.id, ...renderDepIds]);
     const contextNodes = Array.from(contextNodeIds)
       .map(id => this.graph.nodes.find(n => n.id === id))
-      .filter(Boolean) as typeof this.graph.nodes;
+      .filter((n): n is NodeData => !!n && n.type === NodeType.COMPONENT);
 
-    // 3. Build the context string from structural summaries (token-optimized)
-    const summaryParts: string[] = [];
-    for (const node of contextNodes) {
-      summaryParts.push(this.generateStructuralSummary(node.id));
-    }
-    const contextCode = summaryParts.join('\n\n---\n\n');
+    // 3. Build structural summaries — compact representations, no raw code
+    const summaryParts: string[] = contextNodes.map(n => this.generateStructuralSummary(n.id));
+    const contextSummary = summaryParts.join('\n\n---\n\n');
 
-    // 4. Measure actual token counts
+    // 4. Measure actual token counts against full-repo baseline
     const totalRepoTokens = this.graph.metadata.totalRawTokens;
-    const contextTokens = estimateTokens(contextCode);
+    const contextTokens = estimateTokens(contextSummary);
     const savedTokens = Math.max(0, totalRepoTokens - contextTokens);
     const savingsPct = totalRepoTokens > 0
       ? ((savedTokens / totalRepoTokens) * 100).toFixed(1)
@@ -326,20 +324,17 @@ export class QueryEngine {
         name: targetNode.name,
         path: targetNode.filePath,
         type: targetNode.type,
-        snippet: targetNode.codeSnippet ?? null,
       },
       context: {
         renderDependencies: renderDepIds.map(id => {
           const n = this.graph.nodes.find(x => x.id === id);
-          return { name: n?.name, path: n?.filePath, snippet: n?.codeSnippet ?? null };
+          return { name: n?.name, path: n?.filePath };
         }),
-        hooksUsed: hookIds.map(id => {
-          const n = this.graph.nodes.find(x => x.id === id);
-          return n?.name;
-        }),
+        hooksUsed: hookIds.map(id => this.graph.nodes.find(x => x.id === id)?.name),
         affectedByChange: dependentIds.map(id => this.graph.nodes.find(n => n.id === id)?.name),
         impactAnalysis: this.getImpactAnalysis(targetNode.id),
       },
+      contextSummary,
       optimization: {
         totalRepoTokens,
         contextTokens,

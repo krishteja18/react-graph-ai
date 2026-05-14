@@ -19,7 +19,9 @@ import path from "path";
  */
 
 async function main() {
-  const rootDir = process.cwd();
+  const rootDir = process.env.TARGET_DIR
+    ? path.resolve(process.env.TARGET_DIR)
+    : process.cwd();
   let graph = await buildGraph(rootDir);
   let engine = new QueryEngine(graph);
 

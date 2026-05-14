@@ -120,37 +120,16 @@ app.post("/api/ask", async (req, res) => {
       return res.json({ answer: `No matching component found. Try one of: ${context.suggestions?.join(", ")}`, optimization: null });
     }
 
-    // Build a focused prompt from actual code snippets — not the full node list
-    const snippetLines: string[] = [];
-
-    if (context.target.snippet) {
-      snippetLines.push(`// TARGET: ${context.target.path}\n${context.target.snippet}`);
-    }
-
-    for (const dep of context.context.renderDependencies) {
-      if (dep.snippet) {
-        snippetLines.push(`// DEPENDENCY: ${dep.path}\n${dep.snippet}`);
-      }
-    }
-
-    const codeContext = snippetLines.join("\n\n");
-
+    // Build prompt from structural summaries — the actual token-optimized representation
     const prompt = `You are ReactGraph AI, a React architectural assistant.
 
 The developer asked: "${query}"
 
-Here is the minimal relevant code context (${context.optimization.contextTokens} tokens, extracted from ${context.optimization.totalRepoFiles} total files):
+Structural context (${context.optimization.contextTokens} tokens used vs ${context.optimization.totalRepoTokens} total repo tokens — ${context.optimization.tokenSavingsPct} saved):
 
-\`\`\`tsx
-${codeContext || "// No code snippets available — component may lack extractable source."}
-\`\`\`
+${context.contextSummary}
 
-Impact analysis:
-- Components affected if this changes: ${context.context.impactAnalysis.dependents.join(", ") || "none"}
-- Impact level: ${context.context.impactAnalysis.impactLevel}
-- Hooks used: ${context.context.hooksUsed.filter(Boolean).join(", ") || "none"}
-
-Answer the developer's question based only on the code above. Be concise and specific.`;
+Answer the developer's question based on the structural context above. Be concise and specific.`;
 
     const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     const result = await genAI.models.generateContent({
