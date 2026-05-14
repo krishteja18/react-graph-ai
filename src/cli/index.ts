@@ -44,7 +44,7 @@ async function runCli() {
     if (command === 'impact') {
       const nodeName = args[2];
       if (!nodeName) {
-        console.log('Usage: npx reactscope impact . <ComponentName>');
+        console.log('Usage: npx reactprune impact <path> <ComponentName>');
         return;
       }
       const result = engine.getImpactAnalysis(nodeName);
@@ -55,7 +55,7 @@ async function runCli() {
     if (command === 'trace') {
       const nodeName = args[2];
       if (!nodeName) {
-        console.log('Usage: npx tsx src/cli/index.ts trace . <stateName>');
+        console.log('Usage: npx reactprune trace <path> <stateName>');
         return;
       }
       const result = engine.traceStateFlow(nodeName);
@@ -65,7 +65,7 @@ async function runCli() {
     if (command === 'tree') {
       const nodeName = args[2];
       if (!nodeName) {
-        console.log('Usage: npx tsx src/cli/index.ts tree . <componentName>');
+        console.log('Usage: npx reactprune tree <path> <componentName>');
         return;
       }
       const result = engine.getComponentTree(nodeName);

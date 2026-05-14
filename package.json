@@ -10,7 +10,7 @@
     "./mcp": "./dist/mcp/server.js"
   },
   "bin": {
-    "reactprune": "./dist/mcp/server.js"
+    "reactprune": "./dist/bin.js"
   },
   "files": [
     "dist/",
