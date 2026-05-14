@@ -156,7 +156,8 @@ async function main() {
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("ReactScope AI MCP Server running on stdio");
+  console.error(`ReactScope AI MCP Server running — targeting: ${rootDir}`);
+  console.error(`Tip: copy the matching rules file from node_modules/reactscope-ai/templates/ into your project root to enforce graph-first context automatically.`);
 }
 
 main().catch((error) => {
