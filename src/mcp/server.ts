@@ -44,56 +44,56 @@ async function main() {
     return {
       tools: [
         {
-          name: "get_impact_analysis",
-          description: "Analyze the architectural impact of changing a specific React component.",
-          inputSchema: {
-            type: "object",
-            properties: {
-              componentName: { type: "string", description: "Name of the component to analyze" },
-            },
-            required: ["componentName"],
-          },
-        },
-        {
           name: "get_minimal_context",
-          description: "Retrieve token-optimized code context and dependency graph for a specific query.",
+          description: `ALWAYS call this tool first before answering ANY question about this React/Next.js codebase — bugs, features, refactors, or architecture. Do NOT read source files directly. This tool uses a behavioral graph to return only the relevant structural context (hooks, state, props, render tree, impact) at a fraction of the token cost of reading files. Pass the developer's question or the component name as the query.`,
           inputSchema: {
             type: "object",
             properties: {
-              query: { type: "string", description: "What are you trying to fix or build? (e.g., 'Navbar login button')" },
+              query: { type: "string", description: "The developer's question or component name (e.g. 'Navbar login button', 'fix auth bug')" },
             },
             required: ["query"],
           },
         },
         {
-          name: "list_components",
-          description: "List all components discovered in the project graph.",
+          name: "get_impact_analysis",
+          description: `Call this before making ANY change to a shared component. Returns which components will re-render and the blast radius (LOW/MEDIUM/HIGH). Prevents unintended regressions. Use after get_minimal_context identifies the target component.`,
           inputSchema: {
             type: "object",
-            properties: {},
+            properties: {
+              componentName: { type: "string", description: "Name of the component you are about to change" },
+            },
+            required: ["componentName"],
           },
         },
         {
           name: "trace_state_flow",
-          description: "Trace how a named state variable propagates through the component tree.",
+          description: `Call this when the developer asks about state, data flow, or why something re-renders. Traces a state variable from its owner component through all components that will re-render when it changes. More accurate than reading files manually.`,
           inputSchema: {
             type: "object",
             properties: {
-              stateName: { type: "string", description: "Name (or partial name) of the state variable to trace" },
+              stateName: { type: "string", description: "Name (or partial name) of the state variable to trace (e.g. 'isOpen', 'user', 'cart')" },
             },
             required: ["stateName"],
           },
         },
         {
           name: "get_component_tree",
-          description: "Recursively build the render tree for a component up to a given depth.",
+          description: `Call this when the developer asks about component structure, hierarchy, or render relationships. Returns the full nested render tree for a component without reading any files.`,
           inputSchema: {
             type: "object",
             properties: {
-              componentName: { type: "string", description: "Name or ID of the root component" },
+              componentName: { type: "string", description: "Name of the root component to build the tree from" },
               depth: { type: "number", description: "Maximum depth to traverse (default 4)" },
             },
             required: ["componentName"],
+          },
+        },
+        {
+          name: "list_components",
+          description: `Call this when you need to discover what components exist in the project before querying a specific one. Returns all components with their file paths.`,
+          inputSchema: {
+            type: "object",
+            properties: {},
           },
         },
       ],
