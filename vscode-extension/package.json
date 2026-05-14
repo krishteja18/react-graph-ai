@@ -1,0 +1,70 @@
+{
+  "name": "reactprune",
+  "displayName": "ReactPrune — Token-Slim AI Context for React",
+  "description": "Prune your React/Next.js codebase to minimal AI context. Reduces LLM token usage by 90%+ for GitHub Copilot, Claude, ChatGPT, and any AI tool.",
+  "version": "1.0.0",
+  "publisher": "reactprune",
+  "license": "Apache-2.0",
+  "engines": { "vscode": "^1.80.0" },
+  "categories": ["AI", "Other"],
+  "keywords": ["react", "nextjs", "ai", "token", "copilot", "context", "graph"],
+  "icon": "icon.png",
+  "activationEvents": [
+    "workspaceContains:**/*.tsx",
+    "workspaceContains:**/*.jsx"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "reactprune.copyContext",
+        "title": "Copy AI Context (Token-Optimized)",
+        "category": "ReactPrune"
+      },
+      {
+        "command": "reactprune.analyzeImpact",
+        "title": "Analyze Component Impact",
+        "category": "ReactPrune"
+      },
+      {
+        "command": "reactprune.rebuildGraph",
+        "title": "Rebuild Graph Index",
+        "category": "ReactPrune"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "reactprune.copyContext",
+          "when": "resourceExtname =~ /\\.(tsx|jsx|ts|js)$/",
+          "group": "reactprune@1"
+        },
+        {
+          "command": "reactprune.analyzeImpact",
+          "when": "resourceExtname =~ /\\.(tsx|jsx|ts|js)$/",
+          "group": "reactprune@2"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "reactprune.copyContext",
+        "key": "ctrl+shift+p",
+        "mac": "cmd+shift+p",
+        "when": "false"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "tsup",
+    "watch": "tsup --watch",
+    "vsce:package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.80.0",
+    "@vscode/vsce": "^3.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "~5.8.2"
+  }
+}

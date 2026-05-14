@@ -1,8 +1,8 @@
 {
-  "name": "reactscope-ai",
+  "name": "reactprune",
   "version": "1.0.0",
-  "description": "Graph memory engine for token-optimized React/Next.js AI context",
-  "author": "ReactGraph AI Contributors",
+  "description": "Prune your React/Next.js codebase to minimal AI context — reduces LLM token usage by 90%+",
+  "author": "ReactPrune Contributors",
   "license": "Apache-2.0",
   "main": "./dist/mcp/server.js",
   "exports": {
@@ -10,7 +10,7 @@
     "./mcp": "./dist/mcp/server.js"
   },
   "bin": {
-    "reactscope-ai": "./dist/mcp/server.js"
+    "reactprune": "./dist/mcp/server.js"
   },
   "files": [
     "dist/",

@@ -14,7 +14,7 @@ async function runCli() {
 
   const absoluteRoot = path.resolve(process.cwd(), target);
 
-  console.log(`🚀 ReactScope AI: Analyzing ${absoluteRoot}...`);
+  console.log(`🚀 ReactPrune: Analyzing ${absoluteRoot}...`);
 
   try {
     const graph = await buildGraph(absoluteRoot);
