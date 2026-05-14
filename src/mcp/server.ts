@@ -71,6 +71,29 @@ async function main() {
             properties: {},
           },
         },
+        {
+          name: "trace_state_flow",
+          description: "Trace how a named state variable propagates through the component tree.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              stateName: { type: "string", description: "Name (or partial name) of the state variable to trace" },
+            },
+            required: ["stateName"],
+          },
+        },
+        {
+          name: "get_component_tree",
+          description: "Recursively build the render tree for a component up to a given depth.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              componentName: { type: "string", description: "Name or ID of the root component" },
+              depth: { type: "number", description: "Maximum depth to traverse (default 4)" },
+            },
+            required: ["componentName"],
+          },
+        },
       ],
     };
   });
@@ -103,6 +126,20 @@ async function main() {
         }));
         return {
           content: [{ type: "text", text: JSON.stringify(components, null, 2) }],
+        };
+      }
+
+      if (name === "trace_state_flow") {
+        const result = engine.traceStateFlow(args?.stateName as string);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
+      if (name === "get_component_tree") {
+        const result = engine.getComponentTree(args?.componentName as string, args?.depth as number | undefined);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
       }
 

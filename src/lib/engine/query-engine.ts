@@ -77,11 +77,190 @@ export class QueryEngine {
   }
 
   /**
+   * Generates a compact structural summary for a component node.
+   * This replaces raw code snippets for AI context — dramatically reduces tokens.
+   */
+  private generateStructuralSummary(nodeId: string): string {
+    const node = this.graph.nodes.find(n => n.id === nodeId);
+    if (!node) return `[NOT FOUND] ${nodeId}`;
+
+    const lines: string[] = [];
+
+    // Header line
+    const locationPart = (node.lineStart != null && node.lineEnd != null)
+      ? `${node.filePath}:${node.lineStart}-${node.lineEnd}`
+      : node.filePath;
+    lines.push(`[${node.type}] ${node.name} · ${locationPart}`);
+
+    // Directive
+    if (node.directive) {
+      lines.push(`directive: ${node.directive}`);
+    }
+
+    // Next.js type
+    if (node.nextjsType) {
+      lines.push(`nextjs: ${node.nextjsType}`);
+    }
+
+    // State variables (via USES_STATE edges)
+    const stateEdges = this.graph.edges.filter(e => e.source === nodeId && e.type === EdgeType.USES_STATE);
+    if (stateEdges.length > 0) {
+      const stateNames = stateEdges.map(e => {
+        const stateNode = this.graph.nodes.find(n => n.id === e.target);
+        return stateNode?.name ?? e.target.split(':').pop() ?? e.target;
+      });
+      lines.push(`state: ${stateNames.join(' · ')}`);
+    }
+
+    // Hooks (via DEPENDS_ON edges targeting HOOK nodes)
+    const hookEdges = this.graph.edges.filter(e => e.source === nodeId && e.type === EdgeType.DEPENDS_ON);
+    if (hookEdges.length > 0) {
+      const hookNames = hookEdges.map(e => {
+        const hookNode = this.graph.nodes.find(n => n.id === e.target);
+        return hookNode?.name ?? e.target;
+      });
+      // Deduplicate hook names
+      const uniqueHooks = Array.from(new Set(hookNames));
+      lines.push(`hooks: ${uniqueHooks.join(' · ')}`);
+    }
+
+    // Context reads
+    if (node.contextReads && node.contextReads.length > 0) {
+      lines.push(`context: ${node.contextReads.join(' · ')}`);
+    }
+
+    // Effect deps
+    if (node.effectDeps && node.effectDeps.length > 0) {
+      const effectParts = node.effectDeps.map(deps =>
+        deps.length > 0 ? `deps=[${deps.join(',')}]` : 'deps=[]'
+      );
+      lines.push(`effects: ${effectParts.join(' · ')}`);
+    }
+
+    // Renders (via RENDERS edges)
+    const rendersEdges = this.graph.edges.filter(e => e.source === nodeId && e.type === EdgeType.RENDERS);
+    if (rendersEdges.length > 0) {
+      const renderNames = rendersEdges.map(e => {
+        const targetNode = this.graph.nodes.find(n => n.id === e.target);
+        return targetNode?.name ?? e.target;
+      });
+      lines.push(`renders: ${renderNames.join(' · ')}`);
+    }
+
+    // Passes props (via PASSES_PROP edges)
+    const passesPropEdges = this.graph.edges.filter(e => e.source === nodeId && e.type === EdgeType.PASSES_PROP);
+    if (passesPropEdges.length > 0) {
+      const propParts = passesPropEdges.map(e => {
+        const targetNode = this.graph.nodes.find(n => n.id === e.target);
+        const targetName = targetNode?.name ?? e.target;
+        const props: string[] = e.metadata?.props ?? [];
+        return props.length > 0 ? `${targetName}{${props.join(',')}}` : targetName;
+      });
+      lines.push(`passes: ${propParts.join(' · ')}`);
+    }
+
+    // Impact analysis
+    const dependentIds = this.getComponentDependents(nodeId);
+    if (dependentIds.length > 0) {
+      const dependentNames = dependentIds
+        .map(id => this.graph.nodes.find(n => n.id === id)?.name ?? id)
+        .slice(0, 5);
+      let impactLevel: 'LOW' | 'MEDIUM' | 'HIGH' = 'LOW';
+      if (dependentIds.length > 5) impactLevel = 'HIGH';
+      else if (dependentIds.length > 2) impactLevel = 'MEDIUM';
+      lines.push(`impact: ${impactLevel} · dependents: ${dependentNames.join(', ')}`);
+    }
+
+    return lines.join('\n');
+  }
+
+  /**
+   * Recursively builds the render tree for a component up to the given depth.
+   */
+  public getComponentTree(nodeId: string, depth: number = 4): any {
+    const visited = new Set<string>();
+
+    const buildTree = (id: string, currentDepth: number): any => {
+      // Try lookup by id first, then by name
+      const node = this.graph.nodes.find(n => n.id === id || n.name === id);
+      if (!node) return null;
+
+      if (visited.has(node.id)) {
+        return { name: node.name, cycleRef: true };
+      }
+      visited.add(node.id);
+
+      const result: any = {
+        name: node.name,
+        type: node.type,
+        filePath: node.filePath,
+        directive: node.directive,
+        nextjsType: node.nextjsType,
+        children: [],
+      };
+
+      if (currentDepth <= 0) {
+        result.truncated = true;
+        visited.delete(node.id);
+        return result;
+      }
+
+      const childIds = this.renderAdjacency.get(node.id) || [];
+      for (const childId of childIds) {
+        const child = buildTree(childId, currentDepth - 1);
+        if (child) result.children.push(child);
+      }
+
+      visited.delete(node.id);
+      return result;
+    };
+
+    return buildTree(nodeId, depth);
+  }
+
+  /**
+   * Traces how a named state variable propagates through the component tree.
+   */
+  public traceStateFlow(stateName: string): any {
+    const search = stateName.toLowerCase();
+
+    // Find all STATE nodes whose name contains stateName
+    const stateNodes = this.graph.nodes.filter(
+      n => n.type === NodeType.STATE && n.name.toLowerCase().includes(search)
+    );
+
+    if (stateNodes.length === 0) {
+      return { error: `No state found matching "${stateName}"` };
+    }
+
+    return stateNodes.map(stateNode => {
+      // Find owner component: component that has USES_STATE edge to this state node
+      const ownerEdge = this.graph.edges.find(
+        e => e.type === EdgeType.USES_STATE && e.target === stateNode.id
+      );
+      const ownerNode = ownerEdge
+        ? this.graph.nodes.find(n => n.id === ownerEdge.source)
+        : undefined;
+
+      // Find all components that will re-render due to owner change
+      const propagatesTo: string[] = ownerNode
+        ? this.getComponentDependents(ownerNode.id).map(
+            id => this.graph.nodes.find(n => n.id === id)?.name ?? id
+          )
+        : [];
+
+      return {
+        state: stateNode.name,
+        ownedBy: ownerNode?.name ?? null,
+        ownerFile: ownerNode?.filePath ?? null,
+        propagatesTo,
+      };
+    });
+  }
+
+  /**
    * Generates a token-optimized context block for an AI query.
-   * Returns actual code snippets for:
-   * 1. The target component
-   * 2. Its immediate render dependencies
-   * 3. The hooks it uses
+   * Uses structural summaries instead of raw code snippets.
    * Token savings are measured against the full-repo baseline.
    */
   public async getAIReadyContext(query: string): Promise<any> {
@@ -127,14 +306,12 @@ export class QueryEngine {
       .map(id => this.graph.nodes.find(n => n.id === id))
       .filter(Boolean) as typeof this.graph.nodes;
 
-    // 3. Build the code context string from real snippets
-    const snippetParts: string[] = [];
+    // 3. Build the context string from structural summaries (token-optimized)
+    const summaryParts: string[] = [];
     for (const node of contextNodes) {
-      if (node.codeSnippet) {
-        snippetParts.push(`// ${node.filePath} — ${node.name}\n${node.codeSnippet}`);
-      }
+      summaryParts.push(this.generateStructuralSummary(node.id));
     }
-    const contextCode = snippetParts.join('\n\n');
+    const contextCode = summaryParts.join('\n\n---\n\n');
 
     // 4. Measure actual token counts
     const totalRepoTokens = this.graph.metadata.totalRawTokens;

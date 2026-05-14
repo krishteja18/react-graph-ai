@@ -52,6 +52,26 @@ async function runCli() {
       console.log(JSON.stringify(result, null, 2));
     }
 
+    if (command === 'trace') {
+      const nodeName = args[2];
+      if (!nodeName) {
+        console.log('Usage: npx tsx src/cli/index.ts trace . <stateName>');
+        return;
+      }
+      const result = engine.traceStateFlow(nodeName);
+      console.log(JSON.stringify(result, null, 2));
+    }
+
+    if (command === 'tree') {
+      const nodeName = args[2];
+      if (!nodeName) {
+        console.log('Usage: npx tsx src/cli/index.ts tree . <componentName>');
+        return;
+      }
+      const result = engine.getComponentTree(nodeName);
+      console.log(JSON.stringify(result, null, 2));
+    }
+
   } catch (err: any) {
     console.error('Analysis failed:', err.message);
   }
