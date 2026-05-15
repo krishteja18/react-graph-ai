@@ -1,10 +1,10 @@
 # ⚡ React Graph AI — Stop Wasting Tokens on Your React Codebase
 
-> **Cut LLM token usage by 90%+ on every AI request. Works with GitHub Copilot, Claude, ChatGPT, Cursor, Windsurf, and every AI tool you already use.**
+> **Cut LLM token usage by 95%+ on component-level queries. Works with GitHub Copilot, Claude, ChatGPT, Cursor, Windsurf, and any AI tool that accepts pasted context.**
 
 React Graph AI builds a **Behavioral Graph** of your React/Next.js codebase and delivers only the precise structural context an AI needs — not the entire repo. Your AI gets smarter answers. You pay a fraction of the cost.
 
-![npm](https://img.shields.io/badge/npm-react-graph-ai-red)
+[![npm version](https://img.shields.io/npm/v/react-graph-ai.svg)](https://www.npmjs.com/package/react-graph-ai)
 ![MCP](https://img.shields.io/badge/MCP-Claude%20%7C%20Cursor%20%7C%20Windsurf-green)
 ![VS Code](https://img.shields.io/badge/VS%20Code-Extension-blue)
 ![License](https://img.shields.io/badge/License-Apache%202.0-blue)
@@ -17,42 +17,27 @@ Every time you ask Copilot, Claude, or ChatGPT a question about your React app, 
 
 | Scenario | Without React Graph AI | With React Graph AI |
 |---|---|---|
-| Fix a bug in `Navbar` | ~15,000 tokens | ~300 tokens |
-| Refactor an auth component | ~40,000 tokens | ~600 tokens |
-| Trace a state bug | ~20,000 tokens | ~400 tokens |
-| **Cost per day (100 queries)** | **~$12–36/day** | **~$0.05–0.20/day** |
+| Look up `UserAuthForm` component | ~60,000 tokens | ~937 tokens |
+| Look up `UserAvatar` component | ~60,000 tokens | ~203 tokens |
+| Inspect `Dashboard` render tree | ~60,000 tokens | ~295 tokens |
 
-Token counts are measured from real structural graph output — not estimated.
+Numbers from a 129-file Next.js codebase (`shadcn-ui/taxonomy`). Reproduce with the included [benchmark](scripts/benchmark.ts). Token counts are estimated at 4 chars/token; real Claude/GPT counts differ by ~5–15%.
 
 ---
 
 ## 🧠 How It Works
 
-Standard AI tools send full files. React Graph AI sends **structural summaries**.
+Standard AI tools send full files — including unrelated ones. React Graph AI parses your codebase into a behavioral graph and sends **only the components your query is actually about**, with their source plus the structural metadata (props, state, hooks, dependents) needed to reason about them.
 
-Instead of shipping 80 lines of raw `Navbar.tsx`:
+A typical query for one component returns 200–1,000 tokens (the matched component's code + relationships) vs. 20,000–60,000+ tokens for the same answer with full-file context. Measured on a real 129-file Next.js codebase (see [benchmark](scripts/benchmark.ts)):
 
-```
-// What other tools send (1,200+ tokens):
-import React, { useState } from 'react';
-import { useAuth } from '../hooks/useAuth';
-// ... 80 lines of JSX, styles, handlers ...
-```
+| Query | Pruned context | Full repo |
+|---|---|---|
+| `UserAuthForm` | 937 tokens | 60,144 tokens |
+| `UserAvatar` | 203 tokens | 60,144 tokens |
+| `DashboardTableOfContents` | 295 tokens | 60,144 tokens |
 
-React Graph AI sends a compressed behavioral summary (~80 tokens):
-
-```
-[COMPONENT] Navbar · src/components/Navbar.tsx:12-95
-directive: use client
-state: isOpen
-hooks: useAuth · useState
-context: AuthContext
-renders: Logo · MobileMenu · LoginButton
-passes: LoginButton{onClick,disabled} · Logo{size}
-impact: HIGH · dependents: App, DashboardLayout, AdminShell
-```
-
-**Same signal. 15x fewer tokens. Every single query.**
+**Best results today: component-level lookups.** Multi-component refactors and cross-cutting "flow" questions are an active area of improvement — see *Limitations* below.
 
 ---
 
@@ -104,18 +89,20 @@ cp node_modules/react-graph-ai/templates/.windsurfrules .
 ### Option 3 — CLI
 
 ```bash
-# Analyze your entire React project
+# Analyze your entire React project (overview + top dependents)
 npx react-graph-ai analyze ./your-app
 
-# Get token-optimized context for any query
-npx react-graph-ai context ./your-app "Navbar login button"
-
-# Check blast radius before changing a component
+# Check blast radius before changing a shared component
 npx react-graph-ai impact ./your-app Button
 
 # Trace state propagation
 npx react-graph-ai trace ./your-app isOpen
+
+# Show the render tree under a component
+npx react-graph-ai tree ./your-app App
 ```
+
+For token-optimized AI context, use the MCP server (Option 2) or the VS Code extension (Option 1) — both call `get_minimal_context` automatically when the AI needs it.
 
 ---
 
@@ -131,7 +118,9 @@ Generic AI tools use semantic search or file chunking. React Graph AI understand
 - **State propagation** — trace any `useState`/`useReducer` value through every re-render path
 - **Next.js boundaries** — `'use client'` / `'use server'` directives, `page.tsx`, `layout.tsx`, `loading.tsx`
 
-When you say *"fix the login bug"*, React Graph AI doesn't send `Footer.tsx`. It sends `Navbar`, `LoginButton`, `useAuth`, and their structural relationships. Nothing else.
+When you ask about `UserAuthForm`, React Graph AI sends just that component's source, its `'use client'` directive, hooks, and edges — not the 128 other files in your repo.
+
+> **Today's sweet spot:** component-name lookups. Multi-keyword flow questions (e.g. *"how does login redirect work?"*) work best when paired with an AI provider key (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GEMINI_API_KEY`) so the engine can do semantic matching across the graph instead of literal substring matching.
 
 ### Blast Radius Analysis — Before You Break Anything
 
@@ -152,7 +141,24 @@ Know exactly what will break **before** you change a shared component. Your AI g
 
 ### Real Token Measurement
 
-React Graph AI measures actual token savings on every query — not a made-up percentage. The dashboard and VS Code extension both show you live numbers: `312 tokens used vs 94,000 in repo`.
+The VS Code extension and dashboard show live token deltas on every query: pruned context size vs. full-repo size. The repo also ships a reproducible [benchmark script](scripts/benchmark.ts) you can run against any codebase to verify the savings yourself before adopting.
+
+```bash
+npx tsx scripts/benchmark.ts /path/to/your-react-app
+```
+
+---
+
+## ⚠️ Limitations (v1.0)
+
+Be honest with your team about what works today:
+
+- **Component-name keyword matching is the default.** `get_minimal_context` does case-insensitive substring matching against component names and file paths. Queries that don't contain a component name (e.g. *"how does auth flow"*) match nothing unless an AI provider key is set for semantic fallback.
+- **Graph edges exist but aren't included in pruned output yet.** The graph builder tracks props flow / hook deps / render edges, but `get_minimal_context` currently returns matched components only — not their related components. Use `get_impact_analysis` and `get_component_tree` for relationship questions.
+- **Best results on TS/TSX-first React + Next.js apps.** Plain JS / JSX works but loses some type-level edges.
+- **`'use client'` / `'use server'` boundary tagging is detected but not yet used as a query filter.**
+
+These are tracked for v1.1. PRs welcome.
 
 ---
 
