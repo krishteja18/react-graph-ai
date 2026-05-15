@@ -40,6 +40,25 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('react-graph-ai.analyzeImpact', cmdAnalyzeImpact),
     vscode.commands.registerCommand('react-graph-ai.rebuildGraph', rebuildGraph),
   );
+
+  // Register chat participant — @reactgraph in Copilot Chat
+  try {
+    const participant = vscode.chat.createChatParticipant('react-graph-ai.context', handleChat);
+    participant.iconPath = vscode.Uri.joinPath(context.extensionUri, 'icon.png');
+    context.subscriptions.push(participant);
+  } catch (err) {
+    console.warn('Chat participant API unavailable — Copilot Chat may not be installed:', err);
+  }
+
+  // Register language model tools — Copilot can auto-call these during edits/answers
+  try {
+    context.subscriptions.push(
+      vscode.lm.registerTool('react-graph-ai_get_context', new GetContextTool()),
+      vscode.lm.registerTool('react-graph-ai_get_impact', new GetImpactTool()),
+    );
+  } catch (err) {
+    console.warn('Language Model Tool API unavailable — requires VS Code 1.95+:', err);
+  }
 }
 
 // ─── Graph management ────────────────────────────────────────────────────────
@@ -192,6 +211,153 @@ async function cmdAnalyzeImpact() {
     }
   } catch (err: any) {
     vscode.window.showErrorMessage(`React Graph AI: ${err.message}`);
+  }
+}
+
+// ─── Chat Participant: @reactgraph in Copilot Chat ────────────────────────────
+
+async function handleChat(
+  request: vscode.ChatRequest,
+  _context: vscode.ChatContext,
+  stream: vscode.ChatResponseStream,
+  _token: vscode.CancellationToken
+): Promise<void> {
+  if (!engine) {
+    stream.markdown('⏳ React Graph AI is still indexing this workspace. Try again in a moment.');
+    return;
+  }
+
+  const query = request.prompt.trim();
+  if (!query) {
+    stream.markdown(
+      [
+        '**React Graph AI** — token-optimized React/Next.js context.',
+        '',
+        'Usage:',
+        '- `@reactgraph <ComponentName>` — get pruned context with source',
+        '- `@reactgraph /impact <ComponentName>` — show blast radius',
+        '- `@reactgraph /tree <ComponentName>` — show render tree',
+        '',
+        'Or just describe what you\'re working on and I\'ll find the relevant components.',
+      ].join('\n')
+    );
+    return;
+  }
+
+  // Subcommand routing
+  if (request.command === 'impact') {
+    try {
+      const result = engine.getImpactAnalysis(query);
+      stream.markdown(`**Impact: ${result.impactLevel}** for \`${result.componentName}\`\n\n`);
+      stream.markdown(`Dependents (${result.dependents.length}): ${result.dependents.join(', ') || '_none_'}\n\n`);
+      stream.markdown(`\`\`\`json\n${JSON.stringify(result, null, 2)}\n\`\`\``);
+    } catch (err: any) {
+      stream.markdown(`❌ ${err.message}`);
+    }
+    return;
+  }
+
+  if (request.command === 'tree') {
+    const tree = engine.getComponentTree(query, 4);
+    stream.markdown(`**Render tree from \`${query}\`:**\n\n\`\`\`json\n${JSON.stringify(tree, null, 2)}\n\`\`\``);
+    return;
+  }
+
+  // Default: get_minimal_context style query
+  const ctx = await engine.getAIReadyContext(query);
+  if (ctx.error) {
+    stream.markdown(`❌ ${ctx.error}\n\nDid you mean one of these?\n`);
+    for (const s of (ctx.suggestions ?? []).slice(0, 6)) {
+      const label = typeof s === 'string' ? s : `\`${s.name}\` — _${s.path}_`;
+      stream.markdown(`- ${label}\n`);
+    }
+    return;
+  }
+
+  stream.markdown(
+    `**Matched** \`${ctx.target.name}\` (${ctx.target.type}). ` +
+    `Context: **${ctx.optimization.contextTokens} tokens** vs ${ctx.optimization.totalRepoTokens.toLocaleString()} full repo (saved ${ctx.optimization.tokenSavingsPct}).\n\n`
+  );
+  stream.markdown(`\`\`\`\n${ctx.contextSummary}\n\`\`\``);
+}
+
+// ─── Language Model Tools — Copilot can auto-call these ──────────────────────
+
+class GetContextTool implements vscode.LanguageModelTool<{ query: string }> {
+  async invoke(
+    options: vscode.LanguageModelToolInvocationOptions<{ query: string }>,
+    _token: vscode.CancellationToken
+  ): Promise<vscode.LanguageModelToolResult> {
+    if (!engine) {
+      return new vscode.LanguageModelToolResult([
+        new vscode.LanguageModelTextPart('React Graph AI is still indexing. Try again in a moment.'),
+      ]);
+    }
+    const ctx = await engine.getAIReadyContext(options.input.query);
+    if (ctx.error) {
+      const suggestions = (ctx.suggestions ?? [])
+        .map((s: any) => typeof s === 'string' ? s : `${s.name} (${s.path})`)
+        .join(', ');
+      return new vscode.LanguageModelToolResult([
+        new vscode.LanguageModelTextPart(
+          `No match for "${options.input.query}". Candidates: ${suggestions}`
+        ),
+      ]);
+    }
+    return new vscode.LanguageModelToolResult([
+      new vscode.LanguageModelTextPart(
+        `# React Graph context for "${options.input.query}"\n` +
+        `Tokens: ${ctx.optimization.contextTokens} (saved ${ctx.optimization.tokenSavingsPct} vs reading raw files)\n\n` +
+        ctx.contextSummary
+      ),
+    ]);
+  }
+
+  async prepareInvocation(
+    options: vscode.LanguageModelToolInvocationPrepareOptions<{ query: string }>,
+    _token: vscode.CancellationToken
+  ): Promise<vscode.PreparedToolInvocation> {
+    return {
+      invocationMessage: `Fetching React graph context for "${options.input.query}"…`,
+    };
+  }
+}
+
+class GetImpactTool implements vscode.LanguageModelTool<{ componentName: string }> {
+  async invoke(
+    options: vscode.LanguageModelToolInvocationOptions<{ componentName: string }>,
+    _token: vscode.CancellationToken
+  ): Promise<vscode.LanguageModelToolResult> {
+    if (!engine) {
+      return new vscode.LanguageModelToolResult([
+        new vscode.LanguageModelTextPart('React Graph AI is still indexing. Try again in a moment.'),
+      ]);
+    }
+    try {
+      const result = engine.getImpactAnalysis(options.input.componentName);
+      return new vscode.LanguageModelToolResult([
+        new vscode.LanguageModelTextPart(
+          `# Impact analysis: ${result.componentName}\n` +
+          `Impact level: ${result.impactLevel}\n` +
+          `Dependents (${result.dependents.length}): ${result.dependents.join(', ') || 'none'}\n\n` +
+          'Affected render paths:\n' +
+          (result.affectedTree.map(p => `- ${p}`).join('\n') || '_none_')
+        ),
+      ]);
+    } catch (err: any) {
+      return new vscode.LanguageModelToolResult([
+        new vscode.LanguageModelTextPart(`Error: ${err.message}`),
+      ]);
+    }
+  }
+
+  async prepareInvocation(
+    options: vscode.LanguageModelToolInvocationPrepareOptions<{ componentName: string }>,
+    _token: vscode.CancellationToken
+  ): Promise<vscode.PreparedToolInvocation> {
+    return {
+      invocationMessage: `Analyzing impact of ${options.input.componentName}…`,
+    };
   }
 }
 

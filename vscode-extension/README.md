@@ -1,12 +1,30 @@
 # React Graph AI — Token-Slim AI Context for React
 
-Stop wasting tokens. React Graph AI builds a **behavioral graph** of your React/Next.js codebase and sends only the precise structural context an AI needs — not the entire repo. Works with GitHub Copilot, Claude, ChatGPT, and any AI tool that accepts context from your clipboard.
+Stop wasting tokens. React Graph AI builds a **behavioral graph** of your React/Next.js codebase and sends only the precise structural context an AI needs — not the entire repo. **First-class GitHub Copilot integration** plus support for any AI tool that reads your clipboard.
 
-## Features
+## How Copilot uses it (v1.2+)
 
-- **Copy AI Context (Token-Optimized)** — Right-click any `.tsx` / `.jsx` / `.ts` / `.js` file or run from the command palette. Copies a compressed structural summary of the relevant components to your clipboard, ready to paste into your AI tool. Typical savings: **90%+ vs. pasting the raw files.**
-- **Analyze Component Impact** — Before refactoring, see the blast radius: which components re-render, which routes break, how many dependents.
-- **Rebuild Graph Index** — Re-scans your workspace after major changes. Shown in the status bar.
+Two integration paths, both automatic once installed:
+
+**1. `@reactgraph` chat participant** — In Copilot Chat, type:
+
+> @reactgraph UserAuthForm
+>
+> How does the GitHub sign-in flow work, and what would break if I require the password to be 8+ characters?
+
+You get a token-optimized summary inline, then Copilot answers using it.
+
+Subcommands: `/impact <Name>` for blast radius, `/tree <Name>` for the render hierarchy.
+
+**2. Auto-invoked language model tools** — Two tools (`reactGraph`, `reactImpact`) register themselves so Copilot calls them on its own. When you ask Copilot to fix a bug or refactor a component, it reads our tool descriptions and decides to grab graph context before answering — no `@` mention needed. Works inside Copilot Chat, inline edits, and any prompt where Copilot is allowed to invoke tools.
+
+You can also explicitly nudge Copilot with `#reactGraph` in your message.
+
+## Manual commands (for non-Copilot users)
+
+- **Copy AI Context (Token-Optimized)** — Right-click any `.tsx` / `.jsx` file or run from the command palette. Pruned context goes to your clipboard, ready to paste into Claude, ChatGPT, Cursor, Windsurf — any AI tool.
+- **Analyze Component Impact** — Before refactoring a shared component, see what breaks: dependents, re-render paths, impact level (LOW/MEDIUM/HIGH).
+- **Rebuild Graph Index** — Force re-scan after major file changes.
 
 ## How it works
 

@@ -2,11 +2,11 @@
   "name": "react-graph-ai",
   "displayName": "React Graph AI — Token-Slim AI Context for React",
   "description": "Prune your React/Next.js codebase to minimal AI context. Reduces LLM token usage by 90%+ for GitHub Copilot, Claude, ChatGPT, and any AI tool.",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "publisher": "react-graph-ai",
   "license": "Apache-2.0",
-  "engines": { "vscode": "^1.80.0" },
-  "categories": ["AI", "Other"],
+  "engines": { "vscode": "^1.95.0" },
+  "categories": ["AI", "Chat", "Other"],
   "keywords": ["react", "nextjs", "ai", "token", "copilot", "context", "graph"],
   "icon": "icon.png",
   "activationEvents": [
@@ -45,7 +45,70 @@
           "group": "react-graph-ai@2"
         }
       ]
-    }
+    },
+    "chatParticipants": [
+      {
+        "id": "react-graph-ai.context",
+        "name": "reactgraph",
+        "fullName": "React Graph AI",
+        "description": "Token-optimized context for React/Next.js codebases. Use @reactgraph in chat to query the behavioral graph.",
+        "isSticky": true,
+        "commands": [
+          {
+            "name": "context",
+            "description": "Get pruned context for a component or query. Example: /context UserAuthForm"
+          },
+          {
+            "name": "impact",
+            "description": "Show blast radius of changing a component. Example: /impact Button"
+          },
+          {
+            "name": "tree",
+            "description": "Show render tree for a component. Example: /tree DashboardLayout"
+          }
+        ]
+      }
+    ],
+    "languageModelTools": [
+      {
+        "name": "react-graph-ai_get_context",
+        "displayName": "React Graph: Get Context",
+        "modelDescription": "Returns a token-optimized structural summary AND full source code for the React/Next.js components and utilities most relevant to a query. Includes render relationships, dependents, hooks, and imported utility sources via behavioral graph analysis. Call this BEFORE reading source files or answering questions about React/Next.js code in this workspace — it reduces the token cost by 90-99% vs reading raw files. Takes a 'query' string (component name, file name, or description of what to analyze).",
+        "toolReferenceName": "reactGraph",
+        "canBeReferencedInPrompt": true,
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "Component name (e.g. 'UserAuthForm'), file name, or short description of what to analyze (e.g. 'auth form', 'dashboard session check')."
+            }
+          },
+          "required": ["query"]
+        },
+        "tags": ["react", "context", "graph"],
+        "icon": "icon.png"
+      },
+      {
+        "name": "react-graph-ai_get_impact",
+        "displayName": "React Graph: Impact Analysis",
+        "modelDescription": "Returns the blast radius of changing a React component — which components re-render, list of dependents, and impact level (LOW/MEDIUM/HIGH). Call this BEFORE suggesting changes to any shared component to avoid unintended regressions. Takes a 'componentName' string.",
+        "toolReferenceName": "reactImpact",
+        "canBeReferencedInPrompt": true,
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "componentName": {
+              "type": "string",
+              "description": "Name of the component you are about to change"
+            }
+          },
+          "required": ["componentName"]
+        },
+        "tags": ["react", "refactor"],
+        "icon": "icon.png"
+      }
+    ]
   },
   "repository": {
     "type": "git",
@@ -62,7 +125,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "@types/vscode": "^1.80.0",
+    "@types/vscode": "^1.95.0",
     "@vscode/vsce": "^3.0.0",
     "tsup": "^8.0.0",
     "typescript": "~5.8.2"

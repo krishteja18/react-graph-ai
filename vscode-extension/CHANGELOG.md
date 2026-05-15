@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.2.0 — Copilot Chat integration
+
+This is the release that turns the extension from a clipboard helper into a first-class Copilot citizen.
+
+**New: `@reactgraph` chat participant**
+
+In Copilot Chat, type `@reactgraph <component>` to get pruned context for any component without leaving the chat panel. Subcommands:
+- `@reactgraph <name>` — pruned context with source code
+- `@reactgraph /impact <name>` — blast radius / dependents
+- `@reactgraph /tree <name>` — render tree
+
+**New: Auto-invoked language model tools**
+
+Two tools (`reactGraph` and `reactImpact`) are registered with VS Code's Language Model Tool API. Copilot reads their descriptions and **calls them automatically** when it decides it needs context — including during inline edits, code suggestions, and chat answers about your React code. No more pasting context manually.
+
+In Copilot Chat you can also explicitly invoke them with `#reactGraph` or `#reactImpact`.
+
+**Bumped minimum VS Code version to 1.95** (required for the Language Model Tool API).
+
 ## 1.1.1
 
 - Fix: the "Paste into AI" button on the success notification did nothing. Replaced with two working actions: **Open in Copilot Chat** (opens VS Code's chat panel pre-loaded with the copied context) and **Preview** (opens a new markdown editor showing exactly what was copied).
