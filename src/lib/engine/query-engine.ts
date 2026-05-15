@@ -282,25 +282,27 @@ export class QueryEngine {
     const pathLower = node.filePath.toLowerCase();
     const fullQueryLower = fullQuery.toLowerCase();
     const nameTokens = this.tokenizeQuery(node.name);
-    let score = 0;
+    let baseScore = 0;
 
     // Whole-query exact name match — strongest signal
-    if (nameLower === fullQueryLower) score += 200;
-    else if (nameLower.includes(fullQueryLower)) score += 100;
+    if (nameLower === fullQueryLower) baseScore += 200;
+    else if (nameLower.includes(fullQueryLower)) baseScore += 100;
 
     for (const term of terms) {
-      if (nameLower === term) score += 80;
-      else if (nameTokens.includes(term)) score += 40;
-      else if (nameLower.includes(term)) score += 20;
-      if (pathLower.includes(term)) score += 10;
+      if (nameLower === term) baseScore += 80;
+      else if (nameTokens.includes(term)) baseScore += 40;
+      else if (nameLower.includes(term)) baseScore += 20;
+      if (pathLower.includes(term)) baseScore += 10;
     }
 
-    // Bias toward components and utilities (the things AI actually needs)
-    if (node.type === NodeType.COMPONENT) score += 5;
-    else if (node.type === NodeType.UTILITY) score += 3;
-    else if (node.type === NodeType.FILE) score -= 5; // FILE nodes are too generic
+    // No keyword match? Don't surface this node. Type bonus is only a tiebreaker.
+    if (baseScore === 0) return 0;
 
-    return score;
+    if (node.type === NodeType.COMPONENT) baseScore += 5;
+    else if (node.type === NodeType.UTILITY) baseScore += 3;
+    else if (node.type === NodeType.FILE) baseScore -= 5;
+
+    return baseScore;
   }
 
   /**
