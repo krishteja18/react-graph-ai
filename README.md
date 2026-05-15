@@ -17,27 +17,34 @@ Every time you ask Copilot, Claude, or ChatGPT a question about your React app, 
 
 | Scenario | Without React Graph AI | With React Graph AI |
 |---|---|---|
-| Look up `UserAuthForm` component | ~60,000 tokens | ~937 tokens |
-| Look up `UserAvatar` component | ~60,000 tokens | ~203 tokens |
-| Inspect `Dashboard` render tree | ~60,000 tokens | ~295 tokens |
+| Look up `UserAuthForm` (incl. source + utilities) | ~60,000 tokens | ~1,500 tokens |
+| Look up `UserAvatar` | ~60,000 tokens | ~1,700 tokens |
+| `UserAccountNav` refactor (incl. callers) | ~60,000 tokens | ~1,260 tokens |
+| `DashboardLayout` (incl. `getCurrentUser` source + config) | ~60,000 tokens | ~1,420 tokens |
 
-Numbers from a 129-file Next.js codebase (`shadcn-ui/taxonomy`). Reproduce with the included [benchmark](scripts/benchmark.ts). Token counts are estimated at 4 chars/token; real Claude/GPT counts differ by ~5–15%.
+Numbers from a 129-file Next.js codebase (`shadcn-ui/taxonomy`). Pruned context includes structural summary + full source code of the matched component + source of every utility/hook it imports. Reproduce with the included [benchmark](scripts/benchmark.ts). Token counts are estimated at 4 chars/token; real Claude/GPT counts differ by ~5–15%.
 
 ---
 
 ## 🧠 How It Works
 
-Standard AI tools send full files — including unrelated ones. React Graph AI parses your codebase into a behavioral graph and sends **only the components your query is actually about**, with their source plus the structural metadata (props, state, hooks, dependents) needed to reason about them.
+Standard AI tools send full files — including unrelated ones. React Graph AI parses your codebase into a behavioral graph and sends **only the components your query is actually about**, with:
 
-A typical query for one component returns 200–1,000 tokens (the matched component's code + relationships) vs. 20,000–60,000+ tokens for the same answer with full-file context. Measured on a real 129-file Next.js codebase (see [benchmark](scripts/benchmark.ts)):
+1. **Structural summary** — props flow, state, hooks, render edges, dependents, impact level
+2. **Full source code** of the matched component(s) — so the AI can read the actual logic, not just the shape
+3. **Source of every utility/hook the matched component imports** — automatically pulled in via import-following
 
-| Query | Pruned context | Full repo |
+This is what makes cross-cutting questions actually work. When you query `DashboardLayout`, you also get the source of `getCurrentUser` from `lib/session.ts`, `dashboardConfig` from `config/dashboard.ts`, and `cn` from `lib/utils.ts` — without naming any of them.
+
+Measured on a real 129-file Next.js codebase (see [benchmark](scripts/benchmark.ts)):
+
+| Query type | Pruned context | Full repo |
 |---|---|---|
-| `UserAuthForm` | 937 tokens | 60,144 tokens |
-| `UserAvatar` | 203 tokens | 60,144 tokens |
-| `DashboardTableOfContents` | 295 tokens | 60,144 tokens |
+| Component lookup (`UserAuthForm`) | ~1,500 tokens | 60,144 tokens |
+| Refactor analysis (`UserAccountNav` + callers) | ~1,260 tokens | 60,144 tokens |
+| Cross-cutting (`DashboardLayout` + session + config) | ~1,420 tokens | 60,144 tokens |
 
-**Best results today: component-level lookups.** Multi-component refactors and cross-cutting "flow" questions are an active area of improvement — see *Limitations* below.
+Token reduction averages **97–98% on real questions** — and the AI can actually answer them, because source code is included.
 
 ---
 
@@ -118,9 +125,9 @@ Generic AI tools use semantic search or file chunking. React Graph AI understand
 - **State propagation** — trace any `useState`/`useReducer` value through every re-render path
 - **Next.js boundaries** — `'use client'` / `'use server'` directives, `page.tsx`, `layout.tsx`, `loading.tsx`
 
-When you ask about `UserAuthForm`, React Graph AI sends just that component's source, its `'use client'` directive, hooks, and edges — not the 128 other files in your repo.
+When you ask about `UserAuthForm`, React Graph AI sends that component's full source, its `'use client'` directive, hooks, dependents, and the source of any utility it imports — not the 128 other files in your repo.
 
-> **Today's sweet spot:** component-name lookups. Multi-keyword flow questions (e.g. *"how does login redirect work?"*) work best when paired with an AI provider key (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GEMINI_API_KEY`) so the engine can do semantic matching across the graph instead of literal substring matching.
+Multi-word queries are tokenized and scored (`"auth form login"` matches `UserAuthForm` and related utilities). For ambiguous flow questions, set an AI provider key (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GEMINI_API_KEY`) to enable semantic re-ranking on top of the keyword scoring.
 
 ### Blast Radius Analysis — Before You Break Anything
 
@@ -149,16 +156,24 @@ npx tsx scripts/benchmark.ts /path/to/your-react-app
 
 ---
 
-## ⚠️ Limitations (v1.0)
+## ⚠️ Limitations & roadmap
 
-Be honest with your team about what works today:
+What works today (v1.1):
 
-- **Component-name keyword matching is the default.** `get_minimal_context` does case-insensitive substring matching against component names and file paths. Queries that don't contain a component name (e.g. *"how does auth flow"*) match nothing unless an AI provider key is set for semantic fallback.
-- **Graph edges exist but aren't included in pruned output yet.** The graph builder tracks props flow / hook deps / render edges, but `get_minimal_context` currently returns matched components only — not their related components. Use `get_impact_analysis` and `get_component_tree` for relationship questions.
-- **Best results on TS/TSX-first React + Next.js apps.** Plain JS / JSX works but loses some type-level edges.
-- **`'use client'` / `'use server'` boundary tagging is detected but not yet used as a query filter.**
+- ✅ Component-name lookups (single or multi-word, tokenized matching)
+- ✅ Source code included in pruned output (not just structural summary)
+- ✅ Utility/hook source pulled in via import-following
+- ✅ Refactor analysis with caller/dependent info
+- ✅ Cross-cutting queries when a primary component is named
 
-These are tracked for v1.1. PRs welcome.
+Known gaps tracked for future versions:
+
+- **Pure flow questions without a component name** (e.g. *"how does logout work?"*) — best results with `ANTHROPIC_API_KEY` set for semantic re-ranking
+- **Plain JS / JSX** — works but loses some TypeScript-level edges
+- **`'use client'` / `'use server'` boundary filtering** — detected but not yet used as a query filter
+- **No persistent index yet** — the graph is rebuilt on every MCP server startup. For very large repos this can take 5–15 s. A caching layer is planned.
+
+PRs welcome at https://github.com/krishteja18/react-graph-ai
 
 ---
 

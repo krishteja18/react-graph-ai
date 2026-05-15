@@ -8,3 +8,4 @@ coverage/
 !.env.example
 *.vsix
 *.tgz
+.claude/

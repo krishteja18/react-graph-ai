@@ -9,6 +9,7 @@ export enum NodeType {
   STATE = 'STATE',
   PROP = 'PROP',
   FILE = 'FILE',
+  UTILITY = 'UTILITY', // exported functions / consts that aren't React components
 }
 
 export enum EdgeType {

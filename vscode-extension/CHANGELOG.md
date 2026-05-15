@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0
+
+- **Major: pruned context now includes source code, not just structural summary** — AI can answer "how does X work" questions, not just relationship questions
+- **Tokenized query scoring** — multi-word queries like "auth form" now match correctly without an AI provider key
+- **Utility function support** — exported non-component functions (e.g. `getCurrentUser` in `lib/session.ts`) are now captured and surfaced as UTILITY nodes
+- **Import-following** — when a component is matched, the source of utility functions it imports is included automatically (e.g. querying `DashboardLayout` pulls in `getCurrentUser` + config files)
+- Improved fallback suggestions when a query has no match — shows component name + file path
+
 ## 1.0.0
 
 Initial release.

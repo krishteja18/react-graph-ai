@@ -269,6 +269,65 @@ export function parseReactFile(code: string, filePath: string, fileLines?: strin
         }
       },
 
+      // Exported utility functions / consts that aren't React components.
+      // Captures top-level `export function foo()`, `export const foo = ...`, `export async function foo()`.
+      // We only emit a UTILITY node if the name is lowerCamelCase (not a component) and there is no enclosing component scope.
+      ExportNamedDeclaration(path) {
+        if (componentStack.length > 0) return; // skip nested exports
+        const decl = path.node.declaration;
+        if (!decl) return;
+
+        const recordUtility = (name: string, locStart?: number, locEnd?: number) => {
+          if (!name || /^[A-Z]/.test(name)) return; // skip components
+          nodes.push({
+            id: `${filePath}:${name}`,
+            name,
+            type: NodeType.UTILITY,
+            filePath,
+            lineStart: locStart,
+            lineEnd: locEnd,
+            codeSnippet: extractSnippet(fileLines, locStart, locEnd),
+            directive: fileDirective,
+            nextjsType,
+          });
+        };
+
+        if (t.isFunctionDeclaration(decl) && decl.id) {
+          recordUtility(decl.id.name, decl.loc?.start.line, decl.loc?.end.line);
+        } else if (t.isVariableDeclaration(decl)) {
+          for (const d of decl.declarations) {
+            if (t.isIdentifier(d.id)) {
+              recordUtility(
+                d.id.name,
+                path.node.loc?.start.line,
+                path.node.loc?.end.line
+              );
+            }
+          }
+        }
+      },
+
+      // Default-exported utility / function (e.g. `export default function getX()`).
+      // Components are caught by FunctionDeclaration / VariableDeclarator above; this catches plain utilities.
+      ExportDefaultDeclaration(path) {
+        if (componentStack.length > 0) return;
+        const decl = path.node.declaration;
+        if (t.isFunctionDeclaration(decl) && decl.id && /^[a-z]/.test(decl.id.name)) {
+          const name = decl.id.name;
+          nodes.push({
+            id: `${filePath}:${name}`,
+            name,
+            type: NodeType.UTILITY,
+            filePath,
+            lineStart: decl.loc?.start.line,
+            lineEnd: decl.loc?.end.line,
+            codeSnippet: extractSnippet(fileLines, decl.loc?.start.line, decl.loc?.end.line),
+            directive: fileDirective,
+            nextjsType,
+          });
+        }
+      },
+
       // Find Imports
       ImportDeclaration(path) {
         const source = path.node.source.value;

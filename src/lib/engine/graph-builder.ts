@@ -103,7 +103,9 @@ export async function buildGraph(rootPath: string): Promise<ReactScopeGraph> {
           target: resolvedId
         });
       }
-    } else if (edge.type !== EdgeType.IMPORTS) { // Keep other edges but maybe skip raw imports in the final graph view
+    } else {
+      // Keep all other edges including IMPORTS — import-following is needed
+      // for the query engine to surface utility/hook source from referenced files.
       resolvedEdges.push(edge);
     }
   }

@@ -6,7 +6,7 @@ async function run() {
   const query = process.argv[3] || 'UserAuthForm';
   const graph = await buildGraph(target);
   const engine = new QueryEngine(graph);
-  const ctx = await engine.getMinimalContext(query);
+  const ctx = await engine.getAIReadyContext(query);
   console.log(JSON.stringify(ctx, null, 2));
 }
 run();

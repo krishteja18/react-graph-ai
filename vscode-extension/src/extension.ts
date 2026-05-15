@@ -95,7 +95,11 @@ async function cmdCopyContext() {
 
   if (context.error) {
     const pick = await vscode.window.showQuickPick(
-      (context.suggestions ?? []).map((s: string) => ({ label: s })),
+      (context.suggestions ?? []).map((s: any) =>
+        typeof s === 'string'
+          ? { label: s }
+          : { label: s.name, description: s.path }
+      ),
       { title: `React Graph AI: No match for "${query}" — pick a component` }
     );
     if (!pick) return;

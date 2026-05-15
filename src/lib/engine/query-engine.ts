@@ -259,59 +259,169 @@ export class QueryEngine {
   }
 
   /**
-   * Generates a token-optimized context block for an AI query.
-   * Uses structural summaries instead of raw code snippets.
-   * Token savings are measured against the full-repo baseline.
+   * Tokenize a query into lowercase word fragments.
+   * Splits on whitespace, punctuation, and camelCase/PascalCase boundaries.
+   * "UserAuthForm github login" -> ["user", "auth", "form", "github", "login"]
    */
-  public async getAIReadyContext(query: string): Promise<any> {
-    const search = query.toLowerCase();
+  private tokenizeQuery(query: string): string[] {
+    return query
+      .replace(/([a-z])([A-Z])/g, '$1 $2') // camelCase split
+      .replace(/[^a-zA-Z0-9]+/g, ' ')      // punctuation to space
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(t => t.length >= 2);          // drop single letters / empties
+  }
+
+  /**
+   * Score a node against tokenized query terms.
+   * Higher score = more relevant. Returns 0 if no match.
+   */
+  private scoreNodeForQuery(node: NodeData, terms: string[], fullQuery: string): number {
+    if (terms.length === 0) return 0;
+    const nameLower = node.name.toLowerCase();
+    const pathLower = node.filePath.toLowerCase();
+    const fullQueryLower = fullQuery.toLowerCase();
+    const nameTokens = this.tokenizeQuery(node.name);
+    let score = 0;
+
+    // Whole-query exact name match — strongest signal
+    if (nameLower === fullQueryLower) score += 200;
+    else if (nameLower.includes(fullQueryLower)) score += 100;
+
+    for (const term of terms) {
+      if (nameLower === term) score += 80;
+      else if (nameTokens.includes(term)) score += 40;
+      else if (nameLower.includes(term)) score += 20;
+      if (pathLower.includes(term)) score += 10;
+    }
+
+    // Bias toward components and utilities (the things AI actually needs)
+    if (node.type === NodeType.COMPONENT) score += 5;
+    else if (node.type === NodeType.UTILITY) score += 3;
+    else if (node.type === NodeType.FILE) score -= 5; // FILE nodes are too generic
+
+    return score;
+  }
+
+  /**
+   * Generates a token-optimized context block for an AI query.
+   * Includes both structural summaries AND source code of matched components/utilities,
+   * so AI can answer "how does X work" questions, not just "what depends on X".
+   */
+  public async getAIReadyContext(query: string, opts: { compact?: boolean; maxNodes?: number } = {}): Promise<any> {
+    const { compact = false, maxNodes = 3 } = opts;
+    const terms = this.tokenizeQuery(query);
     const aiService = new AIService();
 
-    // 1. Find the primary node of interest
-    let targetNode = this.graph.nodes.find(n =>
-      n.name.toLowerCase() === search ||
-      n.name.toLowerCase().includes(search)
-    );
+    // 1. Score all nodes and pick top matches
+    const scored = this.graph.nodes
+      .filter(n => n.type === NodeType.COMPONENT || n.type === NodeType.UTILITY)
+      .map(node => ({ node, score: this.scoreNodeForQuery(node, terms, query) }))
+      .filter(x => x.score > 0)
+      .sort((a, b) => b.score - a.score);
 
-    // Semantic fallback if a key is configured
-    if (!targetNode && (process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY)) {
+    // Semantic AI fallback if no good keyword match
+    let primaryMatches: NodeData[] = scored.slice(0, maxNodes).map(x => x.node);
+    let matchExplanation = `Matched via tokenized scoring (top ${primaryMatches.length}).`;
+
+    if (primaryMatches.length === 0 && (process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY)) {
       try {
-        const miniContext = await this.getMinimalContext(query);
-        if (miniContext.relevantNodes.length > 0) {
-          targetNode = miniContext.relevantNodes[0];
-          console.error(`Semantic match found: ${targetNode.name} for query "${query}"`);
-        }
+        const candidates = this.graph.nodes
+          .filter(n => n.type === NodeType.COMPONENT || n.type === NodeType.UTILITY)
+          .map(n => `ID: ${n.id}, Name: ${n.name}, File: ${n.filePath}`)
+          .join('\n');
+        const prompt = `Given these React components and utilities:\n${candidates}\n\nQuery: "${query}"\n\nReturn the top 3 most relevant IDs as a comma-separated list. IDs only.`;
+        const response = await aiService.complete(prompt);
+        const suggestedIds = response.content.split(',').map(id => id.trim());
+        primaryMatches = this.graph.nodes.filter(n => suggestedIds.includes(n.id)).slice(0, maxNodes);
+        if (primaryMatches.length > 0) matchExplanation = `Semantic match via ${response.provider}.`;
       } catch (err) {
-        console.error('Semantic match failed during AI context prep:', err);
+        console.error('Semantic fallback failed:', err);
       }
     }
 
-    if (!targetNode) {
+    if (primaryMatches.length === 0) {
       return {
-        error: "No matching component found for query.",
-        suggestions: this.graph.nodes.filter(n => n.type === NodeType.COMPONENT).slice(0, 5).map(n => n.name)
+        error: `No matching component or utility found for "${query}".`,
+        suggestions: this.graph.nodes
+          .filter(n => n.type === NodeType.COMPONENT)
+          .slice(0, 8)
+          .map(n => ({ name: n.name, path: n.filePath })),
       };
     }
 
-    // 2. Collect relevant component nodes: target + its immediate render deps.
-    //    Hooks are captured inside each component's structural summary — not as separate nodes.
-    const renderDepIds = this.renderAdjacency.get(targetNode.id) || [];
-    const dependentIds = this.reverseRenderAdjacency.get(targetNode.id) || [];
+    // 2. For each primary match, gather: render dependencies (component-only) + structural summary + source
+    const targetNode = primaryMatches[0];
+    const renderDepIds = targetNode.type === NodeType.COMPONENT
+      ? (this.renderAdjacency.get(targetNode.id) || [])
+      : [];
+    const dependentIds = targetNode.type === NodeType.COMPONENT
+      ? (this.reverseRenderAdjacency.get(targetNode.id) || [])
+      : [];
 
     const hookIds = this.graph.edges
-      .filter(e => e.source === targetNode!.id && e.type === EdgeType.DEPENDS_ON)
+      .filter(e => e.source === targetNode.id && e.type === EdgeType.DEPENDS_ON)
       .map(e => e.target);
 
-    const contextNodeIds = new Set<string>([targetNode.id, ...renderDepIds]);
-    const contextNodes = Array.from(contextNodeIds)
-      .map(id => this.graph.nodes.find(n => n.id === id))
-      .filter((n): n is NodeData => !!n && n.type === NodeType.COMPONENT);
+    // 3. Build the components/utilities block
+    // Primary matches always include source. Render dependencies get structural summary only (kept compact).
+    const seen = new Set<string>();
+    const codeBlocks: string[] = [];
 
-    // 3. Build structural summaries — compact representations, no raw code
-    const summaryParts: string[] = contextNodes.map(n => this.generateStructuralSummary(n.id));
-    const contextSummary = summaryParts.join('\n\n---\n\n');
+    for (const match of primaryMatches) {
+      if (seen.has(match.id)) continue;
+      seen.add(match.id);
+      const summary = match.type === NodeType.COMPONENT
+        ? this.generateStructuralSummary(match.id)
+        : `[UTILITY] ${match.name} · ${match.filePath}${match.lineStart ? `:${match.lineStart}-${match.lineEnd}` : ''}`;
+      const block = compact
+        ? summary
+        : `${summary}\n\nsource:\n\`\`\`\n${match.codeSnippet ?? '// (no source captured)'}\n\`\`\``;
+      codeBlocks.push(block);
+    }
 
-    // 4. Measure actual token counts against full-repo baseline
+    // Render dependencies — structural summary only (no source, to keep token count down)
+    for (const depId of renderDepIds) {
+      if (seen.has(depId)) continue;
+      const depNode = this.graph.nodes.find(n => n.id === depId);
+      if (!depNode || depNode.type !== NodeType.COMPONENT) continue;
+      seen.add(depId);
+      codeBlocks.push(this.generateStructuralSummary(depId));
+    }
+
+    // Imported utilities — for each primary match, follow its IMPORTS edges to find
+    // utility nodes that share the imported localName. Include their source.
+    // This is what makes cross-cutting queries work (e.g. "session check" pulls in getCurrentUser).
+    const utilityByName = new Map<string, NodeData>();
+    for (const n of this.graph.nodes) {
+      if (n.type === NodeType.UTILITY) utilityByName.set(n.name, n);
+    }
+    const matchFilePaths = new Set(primaryMatches.map(m => m.filePath));
+    const importedUtilityIds = new Set<string>();
+    for (const edge of this.graph.edges) {
+      if (edge.type !== EdgeType.IMPORTS) continue;
+      if (!matchFilePaths.has(edge.source)) continue;
+      const localName = edge.metadata?.localName;
+      if (!localName) continue;
+      const util = utilityByName.get(localName);
+      if (util && !seen.has(util.id)) {
+        importedUtilityIds.add(util.id);
+      }
+    }
+    for (const utilId of importedUtilityIds) {
+      const util = this.graph.nodes.find(n => n.id === utilId);
+      if (!util) continue;
+      seen.add(util.id);
+      const summary = `[UTILITY] ${util.name} · ${util.filePath}${util.lineStart ? `:${util.lineStart}-${util.lineEnd}` : ''}`;
+      const block = compact
+        ? summary
+        : `${summary}\n\nsource:\n\`\`\`\n${util.codeSnippet ?? '// (no source captured)'}\n\`\`\``;
+      codeBlocks.push(block);
+    }
+
+    const contextSummary = codeBlocks.join('\n\n---\n\n');
+
+    // 4. Token math
     const totalRepoTokens = this.graph.metadata.totalRawTokens;
     const contextTokens = estimateTokens(contextSummary);
     const savedTokens = Math.max(0, totalRepoTokens - contextTokens);
@@ -325,14 +435,20 @@ export class QueryEngine {
         path: targetNode.filePath,
         type: targetNode.type,
       },
+      matches: primaryMatches.map(n => ({ name: n.name, type: n.type, path: n.filePath })),
+      matchExplanation,
       context: {
-        renderDependencies: renderDepIds.map(id => {
-          const n = this.graph.nodes.find(x => x.id === id);
-          return { name: n?.name, path: n?.filePath };
-        }),
-        hooksUsed: hookIds.map(id => this.graph.nodes.find(x => x.id === id)?.name),
-        affectedByChange: dependentIds.map(id => this.graph.nodes.find(n => n.id === id)?.name),
-        impactAnalysis: this.getImpactAnalysis(targetNode.id),
+        renderDependencies: renderDepIds
+          .map(id => this.graph.nodes.find(x => x.id === id))
+          .filter((n): n is NodeData => !!n)
+          .map(n => ({ name: n.name, path: n.filePath })),
+        hooksUsed: hookIds.map(id => this.graph.nodes.find(x => x.id === id)?.name).filter(Boolean),
+        affectedByChange: dependentIds
+          .map(id => this.graph.nodes.find(n => n.id === id)?.name)
+          .filter(Boolean),
+        impactAnalysis: targetNode.type === NodeType.COMPONENT
+          ? this.getImpactAnalysis(targetNode.id)
+          : null,
       },
       contextSummary,
       optimization: {
@@ -340,8 +456,9 @@ export class QueryEngine {
         contextTokens,
         savedTokens,
         tokenSavingsPct: `${savingsPct}%`,
-        contextNodes: contextNodes.length,
+        contextNodes: seen.size,
         totalRepoFiles: this.graph.metadata.totalFiles,
+        includesSource: !compact,
       },
     };
   }

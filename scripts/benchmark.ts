@@ -65,8 +65,8 @@ async function run() {
   console.log('-'.repeat(60));
 
   for (const q of queries) {
-    const ctx = await engine.getMinimalContext(q);
-    const ctxJson = JSON.stringify(ctx, null, 2);
+    const ctx = await engine.getAIReadyContext(q);
+    const ctxJson = ctx.contextSummary ?? JSON.stringify(ctx, null, 2);
     const ctxTokens = estimateTokens(ctxJson);
     const fullPct = ((1 - ctxTokens / fullRepoTokens) * 100).toFixed(1);
     const compPct = ((1 - ctxTokens / componentFileTokens) * 100).toFixed(1);
@@ -76,7 +76,7 @@ async function run() {
   console.log('\nNotes:');
   console.log('- Token counts are estimates (4 chars/token). Real Claude/GPT counts differ ~5-15%.');
   console.log('- "vs full" = savings vs pasting every source file. "vs comp" = vs pasting just component files.');
-  console.log('- The pruned context contains node metadata, not source code. Verify answer quality separately.');
+  console.log('- Pruned context includes structural summary + source code of matched components + imported utility sources.');
 }
 
 run().catch(e => { console.error(e); process.exit(1); });
