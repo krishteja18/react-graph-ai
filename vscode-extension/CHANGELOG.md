@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1
+
+- Fix: the "Paste into AI" button on the success notification did nothing. Replaced with two working actions: **Open in Copilot Chat** (opens VS Code's chat panel pre-loaded with the copied context) and **Preview** (opens a new markdown editor showing exactly what was copied).
+
 ## 1.1.0
 
 - **Major: pruned context now includes source code, not just structural summary** — AI can answer "how does X work" questions, not just relationship questions

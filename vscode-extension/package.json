@@ -2,7 +2,7 @@
   "name": "react-graph-ai",
   "displayName": "React Graph AI — Token-Slim AI Context for React",
   "description": "Prune your React/Next.js codebase to minimal AI context. Reduces LLM token usage by 90%+ for GitHub Copilot, Claude, ChatGPT, and any AI tool.",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "publisher": "react-graph-ai",
   "license": "Apache-2.0",
   "engines": { "vscode": "^1.80.0" },

@@ -108,10 +108,29 @@ async function cmdCopyContext() {
 
   await vscode.env.clipboard.writeText(context.contextSummary);
 
-  vscode.window.showInformationMessage(
+  const action = await vscode.window.showInformationMessage(
     `React Graph AI: Copied! ${context.optimization.contextTokens} tokens sent vs ${totalRawTokens.toLocaleString()} in repo — saved ${context.optimization.tokenSavingsPct}`,
-    'Paste into AI'
+    'Open in Copilot Chat',
+    'Preview'
   );
+
+  if (action === 'Open in Copilot Chat') {
+    try {
+      await vscode.commands.executeCommand('workbench.action.chat.open', {
+        query: `${context.contextSummary}\n\n# Question\n`,
+      });
+    } catch {
+      vscode.window.showWarningMessage(
+        'Copilot Chat not available. Context is already in your clipboard — paste with Ctrl+V into any AI tool.'
+      );
+    }
+  } else if (action === 'Preview') {
+    const doc = await vscode.workspace.openTextDocument({
+      content: context.contextSummary,
+      language: 'markdown',
+    });
+    await vscode.window.showTextDocument(doc, { preview: true });
+  }
 }
 
 async function cmdCopyContextWithQuery(query: string) {
